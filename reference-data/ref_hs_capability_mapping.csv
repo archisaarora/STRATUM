@@ -1,0 +1,32 @@
+hs_code,commodity_name,capability_category,signal_weight,rationale
+2710,Petroleum oils (refined),fuel_and_logistics,0.4,Fuel and logistics tempo signal
+2804,Hydrogen and rare gases,propellants_and_explosives,0.7,Propellant production input
+2807,Sulfuric acid,propellants_and_explosives,0.6,Explosives precursor
+2814,Ammonia,propellants_and_explosives,0.7,Propellant precursor
+2846,Rare-earth compounds,rare_earth_and_precision_components,0.9,Guidance / motors / sensors
+2901,Acyclic hydrocarbons,propellants_and_explosives,0.5,Fuel and propellant feedstock
+2902,Cyclic hydrocarbons,propellants_and_explosives,0.5,Fuel and propellant feedstock
+3601,Propellant powders,propellants_and_explosives,1.0,Direct military propellant
+3602,Prepared explosives,propellants_and_explosives,1.0,Direct explosives
+3603,Detonators and fuses,propellants_and_explosives,1.0,Initiation systems
+3604,Pyrotechnics,propellants_and_explosives,0.8,Pyrotechnics / countermeasures
+7108,Gold,strategic_reserves,0.3,Reserve-asset stress signal
+7202,Ferroalloys,airframe_and_armor_materials,0.7,Armor steel alloying
+7601,Unwrought aluminium,airframe_and_armor_materials,0.8,Airframe structural material
+7612,Aluminium containers,rare_earth_and_precision_components,0.4,Precision casings / motor cases
+8108,Titanium and articles,airframe_and_armor_materials,0.9,Airframes and missile bodies
+8504,Transformers and power electronics,guidance_and_electronics,0.6,Electronic-warfare power systems
+8517,Telecom equipment,guidance_and_electronics,0.5,C4ISR communications
+8526,Radar apparatus,guidance_and_electronics,1.0,Radar / radio navigation
+8542,Integrated circuits,guidance_and_electronics,0.9,Guidance and radar processing
+8802,Aircraft and spacecraft,aircraft_direct,1.0,Complete air platforms
+8803,Aircraft parts,aircraft_direct,0.9,Air platform sustainment and assembly
+8905,Light vessels / floating docks,naval_direct,0.6,Naval auxiliary capability
+8906,Warships and lifeboats,naval_direct,1.0,Direct naval combatants
+9301,Military weapons,arms_direct,1.0,Direct arms
+9302,Revolvers and pistols,arms_direct,0.8,Direct arms
+9303,Other firearms,arms_direct,0.8,Direct arms
+9304,Other arms,arms_direct,0.7,Direct arms
+9305,Arms parts and accessories,arms_direct,0.9,Arms industrial activity
+9306,Bombs grenades ammunition,arms_direct,1.0,Direct munitions
+9307,Swords bayonets,arms_direct,0.3,Direct arms (minor)

@@ -1,0 +1,31 @@
+# NOTE: When you create the Python transforms repository in Foundry, it
+# bootstraps its own conda_recipe/meta.yaml pinned to your enrollment's
+# transforms version. MERGE the `run` requirements below into that file
+# (or add each library via the repo's "Libraries" sidebar, which edits
+# this file for you) rather than overwriting it wholesale.
+package:
+  name: "{{ PKG_NAME }}"
+  version: "{{ PKG_VERSION }}"
+
+source:
+  path: ../src
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - python
+    - transforms {{ PYTHON_TRANSFORMS_VERSION }}
+    - transforms-external-systems   # External Transforms (Sources/egress)
+    - palantir_models               # AIP language models in transforms (LLM_MODE="aip")
+    - pandas
+    - numpy
+    - requests
+    - beautifulsoup4
+    - openpyxl
+
+test:
+  requires:
+    - pytest

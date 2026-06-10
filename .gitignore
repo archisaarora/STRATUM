@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+
+# Local data pulls (uploaded to Foundry, not committed)
+local-data/
+
+# Model training artifacts
+model-training/data/
+model-training/mistral-stratum-procurement/
+model-training/merged/
+*.gguf
+evaluation_results.csv
+
+# Secrets
+.env
+*.key
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

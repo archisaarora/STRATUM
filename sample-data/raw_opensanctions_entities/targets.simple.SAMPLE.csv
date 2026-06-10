@@ -1,0 +1,5 @@
+id,schema,name,aliases,birth_date,countries,addresses,identifiers,sanctions,phones,emails,dataset,first_seen,last_seen
+NK-1,Company,Rosoboronexport JSC,ROE,,ru,,,OFAC SDN,,,us_ofac_sdn,2022-04-01,2026-05-01
+NK-2,Company,Aviacon Zitotrans JSC,Aviacon Zitotrans,,ru,,,OFAC SDN,,,us_ofac_sdn,2022-04-01,2026-05-01
+NK-3,Person,Sample Person,,1960-01-01,ir,,,EU FSF,,,eu_fsf,2021-01-01,2026-05-01
+NK-4,Company,Mahan Air,Mahan Airlines,,ir,,,OFAC SDN,,,us_ofac_sdn,2019-01-01,2026-05-01

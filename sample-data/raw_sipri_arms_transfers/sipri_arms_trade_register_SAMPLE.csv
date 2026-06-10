@@ -1,0 +1,11 @@
+SIPRI Arms Transfers Database (SAMPLE DATA)
+Supplier,Recipient,Year of order,Number ordered,Weapon designation,Weapon description,Number delivered,Year(s) of delivery,Status,SIPRI TIV per unit,SIPRI TIV for total order
+Russia,Myanmar,2019,2,Mi-35,Combat helicopter,2,2020,Delivered,9,18
+China,Myanmar,2020,1,JF-17,FGA aircraft,1,2021,Delivered,20,20
+Russia,Myanmar,2021,1,Su-30,FGA aircraft,1,2022,Delivered,33,33
+China,Myanmar,2022,2,K-8,Trainer aircraft,2,2023,Delivered,7,14
+Russia,Myanmar,2023,1,Mi-17,Transport helicopter,1,2024,Delivered,12,12
+Russia,Myanmar,2024,6,Su-30,FGA aircraft,6,2025,Delivered,33,198
+China,Pakistan,2021,4,Type-054A/P,Frigate,2,2022-2023,Delivered,52,208
+China,Pakistan,2022,25,VT-4,Tank,25,2023,Delivered,4,100
+United States,France,2021,3,C-130J,Transport aircraft,3,2022,Delivered,30,90

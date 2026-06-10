@@ -1,0 +1,21 @@
+root_code,label,quad_class,conflict_relevant,weight
+01,Make public statement,1,False,0.0
+02,Appeal,1,False,0.0
+03,Express intent to cooperate,1,False,0.0
+04,Consult,1,False,0.0
+05,Engage in diplomatic cooperation,1,False,0.0
+06,Engage in material cooperation,2,False,0.0
+07,Provide aid,2,False,0.0
+08,Yield,2,False,0.0
+09,Investigate,3,False,0.1
+10,Demand,3,False,0.1
+11,Disapprove,3,False,0.1
+12,Reject,3,False,0.1
+13,Threaten,3,True,0.4
+14,Protest,3,True,0.3
+15,Exhibit force posture,3,True,0.7
+16,Reduce relations,3,True,0.3
+17,Coerce,4,True,0.7
+18,Assault,4,True,0.8
+19,Fight,4,True,1.0
+20,Use unconventional mass violence,4,True,1.0
