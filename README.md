@@ -68,10 +68,31 @@ docs/                     -> the Foundry runbook (start at 00)
    signal, USA hypersonics acceleration, MMR arms spike) so you can build
    and demo the entire pipeline today.
 
-Local test run (same suite Foundry CI executes):
+## Run it locally (no Foundry needed)
+
+The full pipeline runs on your machine against whatever files you have —
+use it to validate downloads before uploading them to Foundry and to see
+signals/profiles/reports immediately:
 
 ```bash
 pip install pandas pyarrow requests beautifulsoup4 openpyxl pytest
+
+# instant demo on the synthetic scenario (compound signal, report, profiles)
+python scripts/run_local_pipeline.py --sample
+
+# real data: drop files into local-data/ (SIPRI xlsx, local_fetch outputs…)
+python scripts/local_fetch.py worldbank
+python scripts/local_fetch.py usaspending
+python scripts/local_fetch.py comtrade --monitored-only   # works without a key
+python scripts/run_local_pipeline.py
+# -> local-data/outputs/: threat_signals.csv, country_threat_profiles.csv,
+#    intel_report_<top-country>.md, plus every intermediate dataset as CSV
+```
+
+Missing sources are skipped gracefully (see docs/01, "Running without
+ACLED / GDELT / SIPRI arms"). Test suite (same one Foundry CI runs):
+
+```bash
 cd transforms-python/src && python -m pytest test
 ```
 

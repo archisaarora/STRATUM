@@ -88,6 +88,12 @@ For "keep as files": in the import dialog choose the option that imports
 raw files without applying a schema (the parsing transforms read the bytes
 directly, so banner rows in SIPRI files don't matter).
 
+**Skipping a source?** Upload the matching header-only file from
+`sample-data/placeholders/` instead (see
+[01_DATA_ACQUISITION.md](01_DATA_ACQUISITION.md), "Running without
+ACLED / GDELT / SIPRI arms") — builds stay green and signals come from the
+sources you do have.
+
 The API-fed datasets (`raw_usaspending_contracts`, `raw_dod_contracts_daily`,
 `raw_comtrade_flows`, `raw_worldbank_indicators`, `raw_acled_events`) are
 **created automatically by their ingest transforms** on first build — you
@@ -142,13 +148,34 @@ Mixing is fine: e.g. External Transforms for the keyless APIs
 1. In `STRATUM/pipeline` > **New > Code repository** > type **Python
    transforms** (Transforms language: Python). Name it `stratum-pipeline`.
 2. Get this code into it — two options:
-   - **Work locally (recommended):** the repo's "Work locally" / clone
-     dialog gives you a git URL + token. Clone it, then copy this repo's
-     `transforms-python/src/stratum` and `transforms-python/src/test`
-     over the bootstrapped `src/` content, replace `src/setup.py` and
-     `src/setup.cfg`, and merge the `requirements/run` list from
-     `transforms-python/conda_recipe/meta.yaml` into the bootstrapped
-     `conda_recipe/meta.yaml`. Commit and push.
+   - **Work locally (recommended):** in the Foundry repo, open the
+     "Work locally" / clone dialog — it shows a git URL and generates a
+     token (used as the password). Then on your machine:
+
+     ```bash
+     # 1. your GitHub copy of STRATUM
+     git clone https://github.com/<you>/STRATUM.git
+     # 2. the empty Foundry repo (URL + token from the Work locally dialog)
+     git clone <foundry-git-url> stratum-foundry
+     cd stratum-foundry
+
+     # 3. copy the pipeline code over the bootstrapped skeleton
+     #    (the Foundry repo root already contains transforms-python/)
+     rm -rf transforms-python/src/*           # remove the example package
+     cp -r ../STRATUM/transforms-python/src/* transforms-python/src/
+
+     # 4. do NOT copy conda_recipe/meta.yaml wholesale — instead open the
+     #    bootstrapped transforms-python/conda_recipe/meta.yaml and add the
+     #    libraries listed in ../STRATUM/transforms-python/conda_recipe/meta.yaml
+     #    under requirements: run: (requests, beautifulsoup4, openpyxl, pandas,
+     #    transforms-external-systems, palantir_models). Or skip this step and
+     #    add them via the Libraries sidebar in the browser afterwards.
+
+     git add -A && git commit -m "Load STRATUM pipeline" && git push
+     ```
+
+     Back in the browser, the repo's **Checks** tab runs the build + the
+     pytest suite. Green checks = the code is live.
    - **In-browser:** recreate the files through the repo editor (tedious
      but works where local git is blocked).
 3. In the repo's **Libraries** panel add (this edits meta.yaml for you):

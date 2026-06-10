@@ -17,7 +17,10 @@ def transfer_velocity(
     falling back to order year.
     """
     df = transfers.copy()
-    df["effective_year"] = df["delivery_year_last"].fillna(df["order_year"])
+    df["effective_year"] = pd.to_numeric(
+        df["delivery_year_last"], errors="coerce"
+    ).fillna(pd.to_numeric(df["order_year"], errors="coerce"))
+    df["total_tiv"] = pd.to_numeric(df["total_tiv"], errors="coerce")
     df = df[df["effective_year"].notna() & df["total_tiv"].notna()]
     df["effective_year"] = df["effective_year"].astype(int)
 

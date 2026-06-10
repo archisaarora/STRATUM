@@ -65,7 +65,9 @@ def parse_trade_register(content: bytes | str) -> pd.DataFrame:
                 out[col].astype(str).str.extract(r"(\d+)")[0], errors="coerce"
             )
     out["order_year"] = pd.to_numeric(out.get("order_year"), errors="coerce")
-    out["delivery_year_last"] = out.get("delivery_year", pd.Series(dtype=str)).map(_last_year)
+    out["delivery_year_last"] = pd.to_numeric(
+        out.get("delivery_year", pd.Series(dtype=str)).map(_last_year),
+        errors="coerce")
 
     out["transfer_id"] = [
         stable_id(r.supplier, r.recipient, getattr(r, "weapon_designation", ""),

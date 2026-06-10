@@ -31,11 +31,7 @@ def material_credibility(
         & (flows_with_baselines["capability_category"] != "uncategorized")
     ].copy()
     if imports.empty:
-        return pd.DataFrame(columns=[
-            "country_code", "domain", "year", "material_signal", "declared_signal",
-            "material_pctile", "declared_pctile", "underdeclaration_score",
-            "overdeclaration_score", "credibility_score",
-        ])
+        return pd.DataFrame(columns=OUTPUT_COLUMNS)
 
     # Material evidence: import value boosted by anomaly score, weighted by
     # how defense-specific the commodity is.
@@ -61,6 +57,7 @@ def material_credibility(
     )
     df = material.merge(milex, on=["country_code", "year"], how="left")
     df["declared_signal"] = df["milex_usd"].fillna(0)
+    df["contract_spend"] = 0.0  # stable schema even when no contracts exist
 
     if classified_contracts is not None and len(classified_contracts):
         c = classified_contracts.copy()
@@ -73,11 +70,13 @@ def material_credibility(
             .rename(columns={
                 "recipient_country": "country_code",
                 "primary_capability_domain": "domain",
-                "total_value_usd": "contract_spend",
+                "total_value_usd": "contract_spend_add",
             })
         )
         df = df.merge(contract_spend, on=["country_code", "domain", "year"], how="left")
-        df["declared_signal"] = df["declared_signal"] + df["contract_spend"].fillna(0)
+        df["contract_spend"] = df["contract_spend_add"].fillna(0)
+        df = df.drop(columns=["contract_spend_add"])
+        df["declared_signal"] = df["declared_signal"] + df["contract_spend"]
 
     by = df.groupby(["domain", "year"])
     df["material_pctile"] = by["material_signal"].rank(pct=True)
@@ -89,4 +88,11 @@ def material_credibility(
     df["credibility_score"] = (
         100 - df[["underdeclaration_score", "overdeclaration_score"]].max(axis=1)
     ).round(2)
-    return df
+    return df[OUTPUT_COLUMNS]
+
+
+OUTPUT_COLUMNS = [
+    "country_code", "domain", "year", "material_signal", "milex_usd",
+    "contract_spend", "declared_signal", "material_pctile", "declared_pctile",
+    "underdeclaration_score", "overdeclaration_score", "credibility_score",
+]

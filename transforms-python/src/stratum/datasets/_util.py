@@ -9,14 +9,41 @@ log = logging.getLogger(__name__)
 
 
 def to_spark(ctx, pdf: pd.DataFrame, schema=None):
-    """pandas -> Spark with None-safe object columns. Pass an explicit
-    StructType for frames that may be empty."""
+    """pandas -> Spark with None-safe object columns.
+
+    Pass an explicit StructType for any output that may legitimately be
+    empty (skipped sources, no signals yet) — Spark cannot infer schemas
+    from zero rows. With a schema, columns are reordered to match and
+    numpy/pandas scalars are converted to plain Python so Spark's type
+    verification accepts them.
+    """
     if schema is not None:
+        cols = [f.name for f in schema.fields]
         if len(pdf) == 0:
             return ctx.spark_session.createDataFrame([], schema)
-        return ctx.spark_session.createDataFrame(pdf, schema)
+        pdf = pdf[cols]
+        data = [
+            tuple(_to_python(v) for v in row)
+            for row in pdf.itertuples(index=False, name=None)
+        ]
+        return ctx.spark_session.createDataFrame(data, schema)
     pdf = pdf.where(pd.notnull(pdf), None)
     return ctx.spark_session.createDataFrame(pdf)
+
+
+def _to_python(v):
+    if v is None:
+        return None
+    if isinstance(v, (list, tuple, set)):
+        return [_to_python(x) for x in v]
+    try:
+        if pd.api.types.is_scalar(v) and pd.isna(v):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(v, "item"):  # numpy scalar -> python scalar
+        return v.item()
+    return v
 
 
 def country_index_from(ref_input) -> "CountryIndex":  # noqa: F821

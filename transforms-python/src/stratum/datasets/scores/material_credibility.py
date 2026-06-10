@@ -3,13 +3,20 @@ from __future__ import annotations
 
 import logging
 
+from pyspark.sql import types as T
 from transforms.api import Input, Output, transform
 
 from stratum import config
-from stratum.core.scoring.material_credibility import material_credibility
+from stratum.core.scoring.material_credibility import OUTPUT_COLUMNS, material_credibility
 from stratum.datasets._util import log_counts, to_spark
 
 log = logging.getLogger(__name__)
+
+_TYPES = {"country_code": T.StringType(), "domain": T.StringType(),
+          "year": T.LongType()}
+SCHEMA = T.StructType([
+    T.StructField(c, _TYPES.get(c, T.DoubleType())) for c in OUTPUT_COLUMNS
+])
 
 
 @transform(
@@ -24,4 +31,4 @@ def compute(ctx, out, flows, sipri, classified):
     c = classified.dataframe().toPandas()
     result = material_credibility(f, s, c)
     log_counts("score_material_credibility", len(f), len(result))
-    out.write_dataframe(to_spark(ctx, result))
+    out.write_dataframe(to_spark(ctx, result, SCHEMA))

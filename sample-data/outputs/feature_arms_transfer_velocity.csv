@@ -1,0 +1,9 @@
+recipient_country,year,total_tiv,transfer_count,top_category,rolling_avg_tiv_3y,tiv_yoy_growth_pct,transfer_spike_flag,spike_magnitude
+FRA,2022,90.0,1,Transport aircraft,,,False,
+MMR,2020,18.0,1,Combat helicopter,,,False,
+MMR,2021,20.0,1,FGA aircraft,,11.11111111111111,False,
+MMR,2022,33.0,1,FGA aircraft,19.0,65.0,False,1.736842105263158
+MMR,2023,14.0,1,Trainer aircraft,23.666666666666668,-57.57575757575758,False,0.5915492957746479
+MMR,2024,12.0,1,Transport helicopter,22.333333333333332,-14.285714285714285,False,0.5373134328358209
+MMR,2025,198.0,1,FGA aircraft,19.666666666666668,1550.0,True,10.067796610169491
+PAK,2023,308.0,2,Frigate,,,False,

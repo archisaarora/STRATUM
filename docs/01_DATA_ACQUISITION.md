@@ -129,6 +129,40 @@ monthly by re-running and re-uploading — or, platform-native, create a
 Data Connection **BigQuery** source pointed at `gdelt-bq.gdeltv2.events`
 with the same query as a sync.
 
+## Running without ACLED / GDELT / SIPRI arms (yes, it works)
+
+The signal engine only *requires* SIPRI milex + World Bank + Comtrade +
+USASpending — all obtainable with zero registrations. The other three
+sources add layers but nothing breaks without them:
+
+| Skipped source | What you lose | What still works |
+|---|---|---|
+| SIPRI arms transfers | arms_transfer_spike signals, arms panels | all other signal types, compound signals |
+| ACLED | conflict-intensity detail, event maps | everything else (conflict is context, not a signal driver) |
+| GDELT | news-tempo component of conflict intensity | everything else |
+
+**How to skip a source in Foundry:** the transforms still expect their raw
+datasets to exist, so upload the matching **header-only placeholder** from
+`sample-data/placeholders/` into the raw dataset instead of real data
+(`raw_acled_events.csv`, `raw_gdelt_events.csv`,
+`raw_sipri_arms_transfers.csv`). Every downstream transform then produces
+a valid empty output — builds stay green, signals come from the sources
+you do have. Swap in real data later by appending it to the same dataset;
+nothing else changes.
+
+**Free ACLED substitute — UCDP (no registration at all):**
+
+```bash
+# 1. download the UCDP Georeferenced Event Dataset from ucdp.uu.se/downloads
+#    (one CSV/zip, no account needed)
+python scripts/convert_ucdp_to_acled.py ~/Downloads/GEDEvent_v25_1.csv.zip
+# 2. upload local-data/raw_acled_events.csv into the raw_acled_events dataset
+```
+
+UCDP covers organized violence (battles, one-sided violence) with fatality
+estimates — slightly narrower and slower-updating than ACLED, but it
+feeds the same conflict-intensity layer unchanged.
+
 ## Where everything lands
 
 ```

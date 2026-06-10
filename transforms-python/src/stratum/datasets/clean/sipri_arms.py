@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 
 import pandas as pd
+from pyspark.sql import types as T
 from transforms.api import Input, Output, transform
 
 from stratum import config
@@ -20,6 +21,25 @@ from stratum.core.parsing import sipri_arms
 from stratum.datasets._util import country_index_from, log_counts, log_unmatched, to_spark
 
 log = logging.getLogger(__name__)
+
+# Explicit schema: output may be empty when a placeholder (header-only)
+# export is uploaded to skip this source.
+SCHEMA = T.StructType([
+    T.StructField("transfer_id", T.StringType()),
+    T.StructField("supplier_country", T.StringType()),
+    T.StructField("supplier_name_raw", T.StringType()),
+    T.StructField("recipient_country", T.StringType()),
+    T.StructField("recipient_name_raw", T.StringType()),
+    T.StructField("weapon_designation", T.StringType()),
+    T.StructField("weapon_description", T.StringType()),
+    T.StructField("order_year", T.DoubleType()),
+    T.StructField("quantity_ordered", T.DoubleType()),
+    T.StructField("quantity_delivered", T.DoubleType()),
+    T.StructField("delivery_year_last", T.DoubleType()),
+    T.StructField("status", T.StringType()),
+    T.StructField("tiv_per_unit", T.DoubleType()),
+    T.StructField("total_tiv", T.DoubleType()),
+])
 
 
 @transform(
@@ -51,14 +71,9 @@ def compute(ctx, out, raw, countries):
     log_unmatched(un_s, "sipri_arms.supplier")
     log_unmatched(un_r, "sipri_arms.recipient")
 
-    cols = ["transfer_id", "supplier_country", "supplier_name_raw",
-            "recipient_country", "recipient_name_raw", "weapon_designation",
-            "weapon_description", "order_year", "quantity_ordered",
-            "quantity_delivered", "delivery_year_last", "status",
-            "tiv_per_unit", "total_tiv"]
-    for c in cols:
-        if c not in pdf.columns:
-            pdf[c] = None
-    pdf = pdf[cols].drop_duplicates(subset=["transfer_id"])
+    for f_ in SCHEMA.fields:
+        if f_.name not in pdf.columns:
+            pdf[f_.name] = None
+    pdf = pdf.drop_duplicates(subset=["transfer_id"])
     log_counts("clean_sipri_arms_transfers", rows_in, len(pdf))
-    out.write_dataframe(to_spark(ctx, pdf))
+    out.write_dataframe(to_spark(ctx, pdf, SCHEMA))
