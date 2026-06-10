@@ -1,7 +1,0 @@
-normalized_name,company_name,country_of_incorporation,total_contract_value_usd,contract_count,primary_capability_domain,first_award,last_award,avg_threat_relevance,company_id,opensanctions_match,is_sanctioned
-aviacon zitotrans,Aviacon Zitotrans JSC,USA,8000000.0,1,logistics_supply_chain,2025-07-30,2025-07-30,0.7,co_c184ef881f57afe8,True,True
-general dynamics electric boat,General Dynamics Electric Boat Corp.,USA,517255000.0,1,submarine,2026-05-28,2026-05-28,0.6,co_6811add04f27040e,False,False
-leidos,Leidos Inc.,USA,12000000.0,4,cyber_defense,2025-03-12,2025-06-12,0.8,co_bcee506ce277e652,False,False
-lockheed martin,Lockheed Martin Corp.,USA,192000000.0,4,hypersonics,2024-08-15,2026-03-22,0.9,co_c8797b6e23ad2c5c,False,False
-northrop grumman,Northrop Grumman Corp.,USA,125000000.0,2,hypersonics,2025-09-18,2026-02-01,0.9,co_6b1b8e1038aeaf62,False,False
-raytheon,Raytheon Co.,USA,306000000.0,5,hypersonics,2025-02-10,2026-06-02,0.8,co_ffe94a3985317d73,False,False

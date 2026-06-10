@@ -1,7 +1,0 @@
-country_code,domain,contract_count_12m,contract_value_12m,prior_count_12m,prior_value_12m,count_growth_pct,value_growth_pct,domain_acceleration_flag,tempo_score,window_end
-USA,autonomous_systems_air,1.0,3000000.0,0.0,0.0,,999.0,False,0.4,2026-06-02
-USA,biodefense,0.0,0.0,1.0,3000000.0,-100.0,-100.0,False,0.0,2026-06-02
-USA,cyber_defense,0.0,0.0,1.0,3000000.0,-100.0,-100.0,False,0.0,2026-06-02
-USA,hypersonics,9.0,596000000.0,3.0,30000000.0,200.0,1886.6666666666667,True,0.85,2026-06-02
-USA,logistics_supply_chain,1.0,8000000.0,0.0,0.0,,999.0,False,0.4,2026-06-02
-USA,submarine,1.0,517255000.0,0.0,0.0,,999.0,False,0.4,2026-06-02

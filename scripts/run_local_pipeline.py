@@ -305,6 +305,26 @@ def run(root: Path) -> None:
         signals, credibility, classified, conflict,
         tier_s=config.TIER_S, tier_a=config.TIER_A, tier_b=config.TIER_B,
         lead_time_bands=config.LEAD_TIME_BANDS)
+
+    # append run history for dashboard tracking
+    hist_path = out_dir / "run_history.csv"
+    tiers = (profiles["composite_threat_tier"].value_counts()
+             if len(profiles) else pd.Series(dtype=int))
+    entry = pd.DataFrame([{
+        "run_at": pd.Timestamp.now("UTC").isoformat(),
+        "total_signals": len(signals),
+        "compound_signals": int((signals["signal_type"] == "compound_signal")
+                                .sum()) if len(signals) else 0,
+        "tier_s": int(tiers.get("S", 0)),
+        "tier_a": int(tiers.get("A", 0)),
+        "top_country": profiles.iloc[0]["country_code"] if len(profiles) else None,
+        "top_tai": profiles.iloc[0]["threat_acceleration_index"]
+        if len(profiles) else None,
+    }])
+    if hist_path.exists():
+        entry = pd.concat([pd.read_csv(hist_path), entry], ignore_index=True)
+    entry.to_csv(hist_path, index=False)
+
     if len(profiles):
         save(profiles.assign(top_domains_of_concern=profiles
                              ["top_domains_of_concern"].map("|".join)),

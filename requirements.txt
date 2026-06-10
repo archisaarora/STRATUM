@@ -1,0 +1,16 @@
+# STRATUM local environment — pipeline + dashboard
+pandas
+pyarrow
+numpy
+requests
+beautifulsoup4
+openpyxl
+pytest
+
+# dashboard
+streamlit
+plotly
+
+# optional: GDELT via BigQuery (scripts/local_fetch.py gdelt)
+# google-cloud-bigquery
+# db-dtypes

@@ -68,32 +68,48 @@ docs/                     -> the Foundry runbook (start at 00)
    signal, USA hypersonics acceleration, MMR arms spike) so you can build
    and demo the entire pipeline today.
 
-## Run it locally (no Foundry needed)
+## Run it locally — pipeline + dashboard (no Foundry needed)
 
-The full pipeline runs on your machine against whatever files you have —
-use it to validate downloads before uploading them to Foundry and to see
-signals/profiles/reports immediately:
+STRATUM is fully standalone: a local pipeline run plus a dark-theme
+analyst dashboard in your browser.
 
 ```bash
-pip install pandas pyarrow requests beautifulsoup4 openpyxl pytest
+git clone https://github.com/archisaarora/STRATUM.git
+cd STRATUM
+pip install -r requirements.txt
 
-# instant demo on the synthetic scenario (compound signal, report, profiles)
+# 1) build the data (instant demo scenario — compound signal planted)
 python scripts/run_local_pipeline.py --sample
 
-# real data: drop files into local-data/ (SIPRI xlsx, local_fetch outputs…)
-python scripts/local_fetch.py worldbank
-python scripts/local_fetch.py usaspending
-python scripts/local_fetch.py comtrade --monitored-only   # works without a key
-python scripts/run_local_pipeline.py
-# -> local-data/outputs/: threat_signals.csv, country_threat_profiles.csv,
-#    intel_report_<top-country>.md, plus every intermediate dataset as CSV
+# 2) open the dashboard
+streamlit run app/STRATUM.py
+# -> http://localhost:8501
 ```
 
-Missing sources are skipped gracefully (see docs/01, "Running without
-ACLED / GDELT / SIPRI arms"). Test suite (same one Foundry CI runs):
+**Dashboard pages** (`app/`):
+
+| Page | What you see |
+|---|---|
+| Command Center | world threat map (TAI choropleth), tier KPIs, live signal feed with filters, domain heat matrix, signal-volume tracking across runs |
+| Country Deep-Dive | tier/TAI/credibility/lead-time header, the declared-vs-material **radar chart**, budget-vs-imports panels, trade-flow anomalies, arms transfers, conflict intensity, and the **intelligence report rendered in-app** (+ download) |
+| Material Credibility | credibility leaderboard, log-log budget-credibility scatter with the expected-ratio diagonal, anomalous-flows table |
+| Procurement Intelligence | searchable classified contracts, domain velocity chart, acceleration flags, contractor table with sanctions highlighting |
+| Signal Tracking | triage queue with **Mark reviewed / Escalate / Dismiss / analyst notes** (state persists across runs and re-runs), signal timeline |
+| Data Health | per-dataset freshness/row counts, pipeline run history |
+
+For real data instead of the demo: drop files into `local-data/`
+(your SIPRI xlsx + `python scripts/local_fetch.py worldbank / usaspending /
+comtrade --monitored-only` — all keyless), run
+`python scripts/run_local_pipeline.py`, then pick **"My data"** in the
+dashboard sidebar. The sidebar's **Re-run pipeline** button refreshes
+everything in place. Missing sources are skipped gracefully (docs/01,
+"Running without ACLED / GDELT / SIPRI arms").
+
+Test suite (same one Foundry CI runs) and the dashboard smoke test:
 
 ```bash
-cd transforms-python/src && python -m pytest test
+cd transforms-python/src && python -m pytest test && cd ../..
+python scripts/smoke_test_app.py
 ```
 
 ## Pipeline at a glance

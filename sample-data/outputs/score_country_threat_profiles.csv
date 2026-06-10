@@ -1,8 +1,0 @@
-country_code,threat_acceleration_index,capability_credibility_score,composite_threat_tier,top_domains_of_concern,active_signal_count,compound_signal_count,dominant_maturity_stage,lead_time_min_months,lead_time_max_months,active_conflict,last_signal_window,last_updated
-IRN,60.96,75.0,A,propellants_and_explosives,3,1,unknown,18,72,False,2025,2026-06-10T17:47:59.946638+00:00
-USA,46.43,100.0,B,hypersonics,3,1,development,18,28,False,2026-06-02,2026-06-10T17:47:59.946638+00:00
-MMR,17.96,100.0,C,arms_direct,1,0,unknown,18,72,True,2025,2026-06-10T17:47:59.946638+00:00
-ETH,3.66,,C,,1,0,unknown,18,72,True,2023,2026-06-10T17:47:59.946638+00:00
-FRA,3.29,75.0,C,,1,0,unknown,18,72,False,2022,2026-06-10T17:47:59.946638+00:00
-CHN,3.22,100.0,C,,1,0,unknown,18,72,False,2023,2026-06-10T17:47:59.946638+00:00
-RUS,3.16,,C,,1,0,unknown,18,72,False,2025,2026-06-10T17:47:59.946638+00:00
