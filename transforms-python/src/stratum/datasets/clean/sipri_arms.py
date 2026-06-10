@@ -1,8 +1,10 @@
-"""Transform 1.4 — raw_sipri_arms_transfers (uploaded CSV export) ->
+"""Transform 1.4 — raw_sipri_arms_transfers (uploaded exports) ->
 clean_sipri_arms_transfers.
 
-Upload the trade-register CSV from armstransfers.sipri.org (all years,
-all countries) into the schema-less dataset `raw_sipri_arms_transfers`.
+Accepts either SIPRI export format in the schema-less dataset:
+  *.csv  — trade-register export (transfer-level, preferred)
+  *.xlsx — TIV importer table (recipient x year totals, fallback when the
+           register export misbehaves; rows are marked status='tiv_annual')
 Non-state suppliers/recipients (e.g. rebel groups) keep a null country
 code but retain the raw name.
 """
@@ -31,9 +33,13 @@ def compute(ctx, out, raw, countries):
     for f in fs.ls(glob="**/*.csv"):
         with fs.open(f.path, "rb") as fh:
             frames.append(sipri_arms.parse_trade_register(fh.read()))
+    for f in fs.ls(glob="**/*.xlsx"):
+        with fs.open(f.path, "rb") as fh:
+            frames.append(sipri_arms.parse_tiv_table(fh.read()))
     if not frames:
-        raise ValueError("raw_sipri_arms_transfers contains no .csv files — "
-                         "export from armstransfers.sipri.org first")
+        raise ValueError("raw_sipri_arms_transfers contains no .csv/.xlsx "
+                         "files — export from armstransfers.sipri.org first "
+                         "(trade register CSV or TIV importer table XLSX)")
     pdf = pd.concat(frames, ignore_index=True)
     rows_in = len(pdf)
 

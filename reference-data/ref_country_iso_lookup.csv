@@ -46,7 +46,7 @@ CHN,CN,156,China,East Asia,False,True,People's Republic of China
 CIV,CI,384,Côte d'Ivoire,,False,False,Cote d'Ivoire|Cote dIvoire|Ivory Coast|Republic of Côte d'Ivoire
 CMR,CM,120,Cameroon,,False,False,Republic of Cameroon
 COD,CD,180,"Congo, The Democratic Republic of the",Sub-Saharan Africa,False,False,"Congo (Kinshasa)|Congo, DR|Congo, Dem. Rep.|Congo, the Democratic Republic of the|DR Congo|DRC|Democratic Republic of the Congo|Zaire"
-COG,CG,178,Congo,,False,False,"Congo (Brazzaville)|Congo, Rep.|Congo-Brazzaville|Republic of the Congo"
+COG,CG,178,Congo,,False,False,"Congo (Brazzaville)|Congo, Rep.|Congo, Republic|Congo-Brazzaville|Republic of the Congo"
 COK,CK,184,Cook Islands,,False,False,
 COL,CO,170,Colombia,South America,False,False,Republic of Colombia
 COM,KM,174,Comoros,,False,False,Union of the Comoros
@@ -244,7 +244,8 @@ VNM,VN,704,Vietnam,Southeast Asia,False,False,"Socialist Republic of Viet Nam|Vi
 VUT,VU,548,Vanuatu,,False,False,Republic of Vanuatu
 WLF,WF,876,Wallis and Futuna,,False,False,
 WSM,WS,882,Samoa,,False,False,Independent State of Samoa
-YEM,YE,887,Yemen,Middle East,False,True,"North Yemen|Republic of Yemen|South Yemen|Yemen Arab Republic|Yemen, Rep."
+XKX,XK,0,Kosovo,Southern Europe,False,False,Republic of Kosovo
+YEM,YE,887,Yemen,Middle East,False,True,"North Yemen|Republic of Yemen|South Yemen|Yemen Arab Republic|Yemen, North|Yemen, Rep.|Yemen, South"
 ZAF,ZA,710,South Africa,Sub-Saharan Africa,False,False,Republic of South Africa
 ZMB,ZM,894,Zambia,,False,False,Republic of Zambia
 ZWE,ZW,716,Zimbabwe,,False,False,Republic of Zimbabwe|Rhodesia

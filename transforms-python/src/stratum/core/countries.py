@@ -46,7 +46,7 @@ class CountryIndex:
             if iso2:
                 idx.by_iso2[iso2] = iso3
             m49 = getattr(row, "m49_code", None)
-            if pd.notna(m49):
+            if pd.notna(m49) and int(m49) > 0:  # 0 = no M49 code (e.g. Kosovo)
                 idx.by_m49[int(m49)] = iso3
         idx.meta = ref.set_index(ref["iso3"].str.upper())
         return idx

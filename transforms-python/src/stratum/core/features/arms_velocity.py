@@ -28,7 +28,8 @@ def transfer_velocity(
             transfer_count=("transfer_id", "count"),
             top_category=(
                 "weapon_description",
-                lambda s: s.value_counts().index[0] if len(s) else None,
+                lambda s: (s.value_counts().index[0]
+                           if len(s.value_counts()) else None),
             ),
         )
         .reset_index()

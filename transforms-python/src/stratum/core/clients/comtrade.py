@@ -1,21 +1,28 @@
-"""UN Comtrade+ client (comtradeapi.un.org, free tier: 500 calls/day).
+"""UN Comtrade clients — two access tiers, same record shape.
 
-One call = one (reporter, year) pulling all defense-relevant HS codes for
-imports+exports against the World aggregate. A work queue with
-checkpointing keeps each run inside the daily call budget; the checkpoint
-is simply the set of (reporter, year) pairs already present in the output
-dataset, so the transform is idempotent and resumes automatically.
+1. Subscription-key API (register at comtradeplus.un.org, 500 calls/day,
+   100K records/call): one call covers one (reporter, year) across ALL
+   defense HS codes. Preferred.
+2. PUBLIC preview API (no key, no registration,
+   /public/v1/preview/...): limited to ONE commodity code and ONE period
+   per call, so the queue runs at (reporter, year, hs_code) grain —
+   ~8x more calls, throttled. Perfect while waiting for a key.
+
+Both queues checkpoint by what already exists in the output, so runs are
+resumable and idempotent.
 """
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from stratum.core.http import get_json
 
 log = logging.getLogger(__name__)
 
-DATA_PATH = "/data/v1/get/C/A/HS"  # Commodities / Annual / HS classification
+DATA_PATH = "/data/v1/get/C/A/HS"            # keyed: Commodities/Annual/HS
+PUBLIC_PREVIEW_PATH = "/public/v1/preview/C/A/HS"  # keyless preview
 WORLD_PARTNER = 0
 
 
@@ -58,6 +65,47 @@ def fetch_reporter_year(
         params["partnerCode"] = WORLD_PARTNER
     headers = {"Ocp-Apim-Subscription-Key": api_key}
     data = get_json(session, base_url + DATA_PATH, params=params, headers=headers)
+    return data.get("data", []) or []
+
+
+def build_public_work_queue(
+    reporter_m49: dict[str, int],
+    years: list[int],
+    hs_codes: list[str],
+    done: set[tuple[str, int, str]],
+) -> list[tuple[str, int, str]]:
+    """Remaining (iso3, year, hs_code) triples for the keyless preview API."""
+    return [
+        (iso3, year, hs)
+        for year in sorted(years)
+        for iso3 in sorted(reporter_m49)
+        for hs in hs_codes
+        if (iso3, year, hs) not in done
+    ]
+
+
+def fetch_public_preview(
+    session: Any,
+    base_url: str,
+    *,
+    reporter_m49: int,
+    year: int,
+    hs_code: str,
+    throttle_seconds: float = 1.0,
+) -> list[dict]:
+    """One keyless preview call: single reporter, single year, single HS
+    code, World partner, imports+exports. Returns the same record shape as
+    the keyed API. Throttled — be polite to the free endpoint."""
+    params = {
+        "reporterCode": reporter_m49,
+        "period": year,
+        "cmdCode": hs_code,          # preview limit: exactly one code
+        "flowCode": "M,X",
+        "partnerCode": WORLD_PARTNER,
+    }
+    data = get_json(session, base_url + PUBLIC_PREVIEW_PATH, params=params)
+    if throttle_seconds:
+        time.sleep(throttle_seconds)
     return data.get("data", []) or []
 
 

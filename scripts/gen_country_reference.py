@@ -48,7 +48,7 @@ ALIASES: dict[str, list[str]] = {
         "Democratic Republic of the Congo", "Congo, the Democratic Republic of the",
         "Congo (Kinshasa)", "Zaire",
     ],
-    "COG": ["Congo, Rep.", "Congo-Brazzaville", "Congo (Brazzaville)", "Republic of the Congo", "Congo"],
+    "COG": ["Congo, Rep.", "Congo, Republic", "Congo-Brazzaville", "Congo (Brazzaville)", "Republic of the Congo", "Congo"],
     "CZE": ["Czech Republic", "Czechia", "Czechoslovakia"],
     "DEU": ["Germany", "German Democratic Republic", "German DR", "West Germany", "Germany (FRG)"],
     "EGY": ["Egypt, Arab Rep.", "Egypt"],
@@ -87,7 +87,8 @@ ALIASES: dict[str, list[str]] = {
     "USA": ["USA", "United States", "United States of America", "US", "U.S.", "United States Of America"],
     "VEN": ["Venezuela", "Venezuela, RB", "Venezuela (Bolivarian Republic of)", "Venezuela (Bolivarian Rep. of)"],
     "VNM": ["Vietnam", "Viet Nam", "Viet Nam, Socialist Republic of"],
-    "YEM": ["Yemen", "Yemen, Rep.", "North Yemen", "South Yemen", "Yemen Arab Republic"],
+    "YEM": ["Yemen", "Yemen, Rep.", "North Yemen", "Yemen, North", "South Yemen",
+            "Yemen, South", "Yemen Arab Republic"],
     "SWZ": ["Eswatini", "Swaziland"],
     "TLS": ["Timor-Leste", "East Timor"],
     "FSM": ["Micronesia", "Micronesia, Fed. Sts.", "Micronesia (Federated States of)"],
@@ -178,6 +179,13 @@ def main() -> None:
             "is_monitored": iso3 in MONITORED,
             "aliases": "|".join(aliases),
         })
+    # Kosovo: not ISO-assigned; SIPRI/ACLED/World Bank track it. m49_code 0
+    # means "no UN M49 code" (CountryIndex skips 0 in the numeric lookup).
+    rows.append({
+        "iso3": "XKX", "iso2": "XK", "m49_code": 0, "country_name": "Kosovo",
+        "region": "Southern Europe", "is_nato": False, "is_monitored": False,
+        "aliases": "Republic of Kosovo",
+    })
     rows.sort(key=lambda r: r["iso3"])
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", newline="", encoding="utf-8") as f:

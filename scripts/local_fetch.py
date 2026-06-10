@@ -55,9 +55,16 @@ def cmd_worldbank(args) -> None:
     s = default_session()
     rows = []
     for ind in config.WORLDBANK_INDICATORS:
-        rows.extend(worldbank.fetch_indicator(
-            s, sources.WORLDBANK_BASE, ind,
-            start_year=config.WORLDBANK_START_YEAR, end_year=date.today().year))
+        if args.data360:
+            rows.extend(worldbank.fetch_indicator_data360(
+                s, sources.DATA360_BASE, ind,
+                start_year=config.WORLDBANK_START_YEAR,
+                end_year=date.today().year))
+        else:
+            rows.extend(worldbank.fetch_indicator(
+                s, sources.WORLDBANK_BASE, ind,
+                start_year=config.WORLDBANK_START_YEAR,
+                end_year=date.today().year))
     _save(pd.DataFrame(rows), "raw_worldbank_indicators")
 
 
@@ -84,19 +91,65 @@ def cmd_usaspending(args) -> None:
     _save(pd.DataFrame(all_rows), "raw_usaspending_contracts")
 
 
-def cmd_comtrade(args) -> None:
-    key = args.key or os.environ.get("COMTRADE_API_KEY")
-    if not key:
-        sys.exit("set COMTRADE_API_KEY or pass --key")
-    s = default_session()
-    ckpt_path = OUT / "comtrade_checkpoint.json"
-    done = set(map(tuple, json.loads(ckpt_path.read_text()))) \
-        if ckpt_path.exists() else set()
+def _comtrade_reporters() -> dict[str, int]:
     ref = pd.read_csv(REPO / "reference-data" / "ref_country_iso_lookup.csv")
     m49 = dict(zip(ref["iso3"], ref["m49_code"].astype(int)))
     m49.update(config.COMTRADE_SPECIAL_M49)
-    reporters = {c: m49[c] for c in config.TARGET_COUNTRIES if c in m49}
+    return {c: m49[c] for c in config.TARGET_COUNTRIES if c in m49}
+
+
+def _comtrade_append(rows: list[dict]) -> None:
+    out_path = OUT / "raw_comtrade_flows.csv"
+    df = pd.DataFrame(rows)
+    if out_path.exists() and len(df):
+        df = pd.concat([pd.read_csv(out_path), df], ignore_index=True)
+    elif out_path.exists():
+        df = pd.read_csv(out_path)
+    df.to_csv(out_path, index=False)
+    print(f"-> {out_path} ({len(df):,} total rows). "
+          f"Re-run until the queue drains, then upload to raw_comtrade_flows.")
+
+
+def cmd_comtrade(args) -> None:
+    s = default_session()
+    OUT.mkdir(exist_ok=True)
+    reporters = _comtrade_reporters()
+    if args.monitored_only:
+        reporters = {c: m for c, m in reporters.items()
+                     if c in config.MONITORED_COUNTRIES}
     years = list(range(config.HISTORY_START_YEAR, date.today().year + 1))
+    key = args.key or os.environ.get("COMTRADE_API_KEY")
+
+    if args.public or not key:
+        if not key:
+            print("No COMTRADE_API_KEY found — using the free PUBLIC preview "
+                  "API (no key, 1 HS code per call, throttled).")
+            if not args.monitored_only:
+                print("Tip: add --monitored-only to cut the call count ~70%.")
+        ckpt = OUT / "comtrade_public_checkpoint.json"
+        done = set(map(tuple, json.loads(ckpt.read_text()))) if ckpt.exists() else set()
+        queue = comtrade.build_public_work_queue(
+            reporters, years, config.DEFENSE_HS_CODES,
+            {(c, int(y), h) for c, y, h in done})
+        print(f"{len(queue)} (reporter, year, hs) calls pending; "
+              f"up to {args.budget} this run")
+        rows = []
+        for iso3, year, hs in queue[: args.budget]:
+            try:
+                recs = comtrade.fetch_public_preview(
+                    s, sources.COMTRADE_BASE, reporter_m49=reporters[iso3],
+                    year=year, hs_code=hs, throttle_seconds=args.delay)
+            except RuntimeError as exc:
+                print(f"  {iso3}/{year}/{hs} FAILED: {exc}")
+                continue
+            rows.extend(comtrade.to_raw_rows(recs, iso3))
+            done.add((iso3, year, hs))
+        ckpt.write_text(json.dumps(sorted(done)))
+        _comtrade_append(rows)
+        return
+
+    ckpt = OUT / "comtrade_checkpoint.json"
+    done = set(map(tuple, json.loads(ckpt.read_text()))) if ckpt.exists() else set()
     queue = comtrade.build_work_queue(reporters, years,
                                       {(c, int(y)) for c, y in done})
     print(f"{len(queue)} (reporter, year) pairs pending; "
@@ -114,15 +167,8 @@ def cmd_comtrade(args) -> None:
         rows.extend(comtrade.to_raw_rows(recs, iso3))
         done.add((iso3, year))
         print(f"  {iso3}/{year}: {len(recs)} rows")
-    OUT.mkdir(exist_ok=True)
-    ckpt_path.write_text(json.dumps(sorted(done)))
-    out_path = OUT / "raw_comtrade_flows.csv"
-    df = pd.DataFrame(rows)
-    if out_path.exists():
-        df = pd.concat([pd.read_csv(out_path), df], ignore_index=True)
-    df.to_csv(out_path, index=False)
-    print(f"appended -> {out_path} ({len(df):,} total rows). "
-          f"Re-run tomorrow until the queue drains.")
+    ckpt.write_text(json.dumps(sorted(done)))
+    _comtrade_append(rows)
 
 
 def cmd_acled(args) -> None:
@@ -169,13 +215,21 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("worldbank")
+    w = sub.add_parser("worldbank")
+    w.add_argument("--data360", action="store_true",
+                   help="use the newer Data360 API instead of classic v2")
     u = sub.add_parser("usaspending")
     u.add_argument("--start", default=f"{config.HISTORY_START_YEAR}-01-01")
     u.add_argument("--end", default=None)
     u.add_argument("--max-pages", type=int, default=400)
     c = sub.add_parser("comtrade")
     c.add_argument("--key", default=None)
+    c.add_argument("--public", action="store_true",
+                   help="force the keyless public preview API")
+    c.add_argument("--monitored-only", action="store_true",
+                   help="only the 13 monitored countries (fewer calls)")
+    c.add_argument("--delay", type=float, default=1.0,
+                   help="seconds between public-preview calls")
     c.add_argument("--budget", type=int, default=config.COMTRADE_DAILY_CALL_BUDGET)
     a = sub.add_parser("acled")
     a.add_argument("--key", default=None)

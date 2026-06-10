@@ -32,8 +32,9 @@ ACLED_TOKEN_SECRET = "additionalSecretAcledToken"     # new OAuth bearer token
 #     Foundry the same URL is configured on the source) -----------------
 USASPENDING_BASE = "https://api.usaspending.gov"
 DEFENSE_GOV_BASE = "https://www.defense.gov"
-COMTRADE_BASE = "https://comtradeapi.un.org"
-WORLDBANK_BASE = "https://api.worldbank.org"
+COMTRADE_BASE = "https://comtradeapi.un.org"   # keyed AND public preview paths
+WORLDBANK_BASE = "https://api.worldbank.org"   # classic v2 (default)
+DATA360_BASE = "https://data360api.worldbank.org"  # newer World Bank platform
 ACLED_LEGACY_BASE = "https://api.acleddata.com"
 ACLED_BASE = "https://acleddata.com"
 OPENSANCTIONS_BASE = "https://data.opensanctions.org"

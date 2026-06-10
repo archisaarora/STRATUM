@@ -1,9 +1,11 @@
-"""SIPRI Arms Transfers 'trade register' CSV parser.
+"""SIPRI Arms Transfers parsers — two export formats supported.
 
-armstransfers.sipri.org exports a CSV with a few banner lines before the
-header and column names that drift between releases. We match columns
-fuzzily and normalize: TIV values may carry '()' marking sub-1 estimates;
-delivery years may be ranges like '2021-2023'.
+1. Trade register CSV (preferred, transfer-level detail): banner lines
+   before the header, fuzzy column names, '()' marking sub-1 TIV
+   estimates, delivery-year ranges like '2021-2023'.
+2. TIV tables XLSX (fallback when the register export misbehaves):
+   recipient/supplier rows x year columns of total TIV — coarser (no
+   weapon detail) but enough for arms-transfer velocity and spike signals.
 """
 from __future__ import annotations
 
@@ -80,6 +82,80 @@ def _find_header_line(lines: list[str]) -> int:
         if "supplier" in low and "recipient" in low:
             return i
     raise ValueError("Could not find SIPRI trade-register header line")
+
+
+REGISTER_COLUMNS = [
+    "transfer_id", "supplier", "recipient", "weapon_designation",
+    "weapon_description", "order_year", "quantity_ordered",
+    "quantity_delivered", "delivery_year_last", "status",
+    "tiv_per_unit", "total_tiv",
+]
+
+TIV_ANNUAL_MARKER = "tiv_annual"
+
+
+def parse_tiv_table(content: bytes, *, role: str = "recipient") -> pd.DataFrame:
+    """Parse a SIPRI TIV table XLSX (entities x years) into register-shaped
+    rows, one per (entity, year), marked status='tiv_annual'.
+
+    `role` is "recipient" for the importer table (the normal case) or
+    "supplier" for the exporter table. TIV figures are SIPRI TIV millions,
+    matching the register's 'SIPRI TIV for total order' units.
+    """
+    xls = pd.ExcelFile(io.BytesIO(content))
+    frames = []
+    for sheet in xls.sheet_names:
+        raw = xls.parse(sheet, header=None)
+        header_idx = _find_tiv_header_row(raw)
+        if header_idx is None:
+            continue
+        header = [str(v).strip() for v in raw.iloc[header_idx]]
+        df = raw.iloc[header_idx + 1:].copy()
+        df.columns = header
+        entity_col = header[0] if header else None
+        year_cols = [c for c in df.columns if re.fullmatch(r"\d{4}(\.0)?", str(c))]
+        if not entity_col or not year_cols:
+            continue
+        df = df[[entity_col] + year_cols]
+        df = df[df[entity_col].notna()]
+        long = df.melt(id_vars=[entity_col], var_name="year", value_name="total_tiv")
+        long["year"] = (long["year"].astype(str)
+                        .str.replace(".0", "", regex=False).astype(int))
+        long["total_tiv"] = long["total_tiv"].map(_tiv_to_float)
+        long = long[long["total_tiv"].notna() & (long["total_tiv"] != 0)]
+        long = long.rename(columns={entity_col: role})
+        frames.append(long)
+    if not frames:
+        raise ValueError(
+            f"No TIV table sheets recognized in workbook: {xls.sheet_names}")
+    out = pd.concat(frames, ignore_index=True)
+    other = "supplier" if role == "recipient" else "recipient"
+    out[other] = None
+    out["weapon_designation"] = None
+    out["weapon_description"] = None
+    out["order_year"] = out["year"]
+    out["delivery_year_last"] = out["year"].astype(float)
+    out["quantity_ordered"] = None
+    out["quantity_delivered"] = None
+    out["tiv_per_unit"] = None
+    out["status"] = TIV_ANNUAL_MARKER
+    out["transfer_id"] = [
+        stable_id("tiv", role, r[role], r["year"], prefix="at_")
+        for _, r in out.iterrows()
+    ]
+    out = out.drop(columns=["year"])
+    log.info("sipri_arms tiv table: %d (entity, year) rows", len(out))
+    return out[[c for c in REGISTER_COLUMNS if c in out.columns]]
+
+
+def _find_tiv_header_row(raw: pd.DataFrame) -> int | None:
+    """Header = first row whose cells include a run of >=3 four-digit years."""
+    for i in range(min(20, len(raw))):
+        vals = [str(v).strip() for v in raw.iloc[i].tolist()]
+        years = sum(bool(re.fullmatch(r"\d{4}(\.0)?", v)) for v in vals)
+        if years >= 3:
+            return i
+    return None
 
 
 def _tiv_to_float(v: object) -> float | None:

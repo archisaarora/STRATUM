@@ -60,6 +60,10 @@ def _parse_sheet(xls: pd.ExcelFile, sheet: str, measure: str, scale: float) -> p
     long["value"] = long["value"].map(_to_float)
     long = long[long["value"].notna()]
     long["value"] = long["value"] * scale
+    # SIPRI's "Share of GDP" sheet stores fractions (0.034 = 3.4%) in recent
+    # releases; older releases used percent. Normalize to percent.
+    if measure == "expenditure_pct_gdp" and len(long) and long["value"].median() < 1.0:
+        long["value"] = long["value"] * 100.0
     long = long.rename(columns={country_col: "country_name_raw"})
     long["measure"] = measure
     return long[["country_name_raw", "year", "measure", "value"]]

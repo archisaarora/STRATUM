@@ -20,6 +20,31 @@ deeper into one subsystem.
   them: `scripts/make_sample_raw_data.py` generates sample files that
   exercise the entire pipeline first.
 
+### Notes for AIP Developer-tier accounts
+
+There is **no migration** to do — this repo was written *for* Foundry; you
+are loading it, not porting it. On first login to your developer
+enrollment, take five minutes to check what's enabled (it determines which
+path you take at each fork in this runbook):
+
+1. **Apps visible?** Confirm you can open: Compass (files), Data
+   Connection, Code Repositories, Pipeline Builder, Ontology Manager,
+   Workshop, AIP Logic. Dev tiers generally include all of these.
+2. **AIP models:** open AIP / model catalog and note which LLMs are listed
+   (GPT-4o / Claude / etc.) and copy a model RID → `config.AIP_MODEL_RID`.
+   If the list is empty, run with `LLM_MODE = "keyword"` until model
+   access is enabled.
+3. **Egress:** try creating one REST API source in Data Connection (start
+   with `api.usaspending.gov`). If creating a network egress policy needs
+   an approval you don't have, don't fight it — use the
+   `scripts/local_fetch.py` upload path (§4b) for everything. The
+   pipeline is identical either way; ingestion provenance is the only
+   difference.
+4. **Resource limits:** developer tiers cap compute and storage. Our
+   defaults are already sized for this (DoD-only USASpending agencies,
+   2020+ scope, world-total Comtrade rows, GDELT pre-aggregated in
+   BigQuery before it ever reaches Foundry).
+
 ## 1. Create the project skeleton
 
 1. In Foundry, create a Project named **STRATUM**.
