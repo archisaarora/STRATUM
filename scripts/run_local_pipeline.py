@@ -54,7 +54,7 @@ from stratum.core.llm.keyword_classifier import (  # noqa: E402
 from stratum.core.parsing.opensanctions import (  # noqa: E402
     build_org_name_index, tidy_targets)
 from stratum.core.parsing.sipri_arms import (  # noqa: E402
-    parse_tiv_table, parse_trade_register)
+    TIV_ANNUAL_MARKER, parse_tiv_csv, parse_tiv_table, parse_trade_register)
 from stratum.core.parsing.sipri_milex import parse_workbook  # noqa: E402
 from stratum.core.report import build_report  # noqa: E402
 from stratum.core.features.import_intensity import import_intensity  # noqa: E402
@@ -71,10 +71,15 @@ def say(status: str, msg: str) -> None:
 
 
 def find(root: Path, *patterns: str) -> list[Path]:
-    hits: list[Path] = []
-    for p in patterns:
-        hits += [f for f in root.rglob(p) if "outputs" not in f.parts]
-    return sorted(set(hits))
+    """Case-insensitive filename matching (SIPRI exports arrive with
+    arbitrary capitalization)."""
+    import fnmatch
+
+    all_files = [f for f in root.rglob("*")
+                 if f.is_file() and "outputs" not in f.parts]
+    return sorted({f for f in all_files
+                   if any(fnmatch.fnmatch(f.name.lower(), p.lower())
+                          for p in patterns)})
 
 
 def load_inputs(root: Path, idx: CountryIndex):
@@ -110,17 +115,35 @@ def load_inputs(root: Path, idx: CountryIndex):
 
     register_frames = [f for f in tiv_frames if len(f)]
     for f in find(root, "*arms*.csv", "*register*.csv", "*sipri*.csv"):
+        content = f.read_bytes()
         try:
-            parsed = parse_trade_register(f.read_bytes())
+            parsed = parse_trade_register(content)
             if len(parsed):
                 register_frames.append(parsed)
                 say("ok", f"SIPRI arms register: {f.name}")
+            continue
         except ValueError:
-            say("warn", f"not a SIPRI register csv, skipped: {f.name}")
+            pass
+        try:
+            parsed = parse_tiv_csv(content)
+            register_frames.append(parsed)
+            say("ok", f"SIPRI TIV table: {f.name} ({len(parsed):,} rows)")
+        except ValueError as exc:
+            say("warn", f"skipped {f.name}: {exc}")
     if register_frames:
         a = pd.concat(register_frames, ignore_index=True)
+        # If transfer-level register rows AND annual TIV totals coexist,
+        # keep the register only — summing both would double-count.
+        is_annual = a["status"] == TIV_ANNUAL_MARKER
+        if is_annual.any() and (~is_annual).any():
+            say("info", "register + TIV table both present — using the "
+                        "transfer-level register, dropping annual totals")
+            a = a[~is_annual]
         a, _ = idx.standardize_column(a, "supplier", "supplier_country")
         a, un = idx.standardize_column(a, "recipient", "recipient_country")
+        if len(un):
+            say("info", f"arms: {len(un)} non-state/aggregate names dropped "
+                        f"(e.g. {un.iloc[:3, 0].tolist()})")
         data["arms"] = a
 
     def first_csv(*patterns: str, label: str) -> pd.DataFrame | None:

@@ -111,26 +111,87 @@ def parse_tiv_table(content: bytes, *, role: str = "recipient") -> pd.DataFrame:
         header_idx = _find_tiv_header_row(raw)
         if header_idx is None:
             continue
-        header = [str(v).strip() for v in raw.iloc[header_idx]]
-        df = raw.iloc[header_idx + 1:].copy()
-        df.columns = header
-        entity_col = header[0] if header else None
-        year_cols = [c for c in df.columns if re.fullmatch(r"\d{4}(\.0)?", str(c))]
-        if not entity_col or not year_cols:
-            continue
-        df = df[[entity_col] + year_cols]
-        df = df[df[entity_col].notna()]
-        long = df.melt(id_vars=[entity_col], var_name="year", value_name="total_tiv")
-        long["year"] = (long["year"].astype(str)
-                        .str.replace(".0", "", regex=False).astype(int))
-        long["total_tiv"] = long["total_tiv"].map(_tiv_to_float)
-        long = long[long["total_tiv"].notna() & (long["total_tiv"] != 0)]
-        long = long.rename(columns={entity_col: role})
-        frames.append(long)
+        long = _tiv_wide_to_long(raw, header_idx, role)
+        if long is not None:
+            frames.append(long)
     if not frames:
         raise ValueError(
             f"No TIV table sheets recognized in workbook: {xls.sheet_names}")
     out = pd.concat(frames, ignore_index=True)
+    log.info("sipri_arms tiv table: %d (entity, year) rows", len(out))
+    return _finalize_tiv(out, role)
+
+
+def parse_tiv_csv(content: bytes | str) -> pd.DataFrame:
+    """Parse a SIPRI TIV table CSV export (armstransfers.sipri.org).
+
+    Auto-detects the table type from the header's first cell:
+      'Recipient'   -> imports per recipient per year (drives arms velocity)
+      'Exports by'  -> exports per supplier per year (context)
+    World weapon-category tables (blank first cell) are rejected — they
+    carry no per-country information.
+    """
+    text = (content.decode("utf-8-sig", errors="replace")
+            if isinstance(content, bytes) else content)
+    lines = text.splitlines()
+    header_i = next(
+        (i for i, l in enumerate(lines[:30])
+         if sum(bool(re.fullmatch(r"\d{4}", t.strip()))
+                for t in l.split(",")) >= 3),
+        None)
+    if header_i is None:
+        raise ValueError("No TIV header row (year columns) found in CSV")
+    first = lines[header_i].split(",")[0].strip().lower()
+    if "recipient" in first:
+        role = "recipient"
+    elif "export" in first or "supplier" in first:
+        role = "supplier"
+    else:
+        raise ValueError(
+            "TIV CSV is a weapon-category table (no per-country rows) — "
+            "export the 'by recipient' table instead")
+    # Banner lines have a different field count than the table — parse
+    # from the header line only.
+    df = pd.read_csv(io.StringIO("\n".join(lines[header_i:])), dtype=str)
+    df.columns = [str(c).strip() for c in df.columns]
+    long = _melt_tiv(df, df.columns[0], role)
+    if long is None or long.empty:
+        raise ValueError("TIV CSV contained no parseable country rows")
+    log.info("sipri_arms tiv csv (%s): %d (entity, year) rows", role, len(long))
+    return _finalize_tiv(long, role)
+
+
+def _tiv_wide_to_long(raw: pd.DataFrame, header_idx: int,
+                      role: str) -> pd.DataFrame | None:
+    header = [str(v).strip() for v in raw.iloc[header_idx]]
+    df = raw.iloc[header_idx + 1:].copy()
+    df.columns = header
+    entity_col = header[0] if header else None
+    if not entity_col:
+        return None
+    return _melt_tiv(df, entity_col, role)
+
+
+def _melt_tiv(df: pd.DataFrame, entity_col: str, role: str) -> pd.DataFrame | None:
+    """Wide TIV table (entity rows x year columns) -> long rows. Summary
+    columns ('2015-2025', 'Percentage'...) are excluded by the year regex;
+    world-total footers dropped; aggregates like 'NATO**' kept and dropped
+    later at country matching."""
+    year_cols = [c for c in df.columns if re.fullmatch(r"\d{4}(\.0)?", str(c))]
+    if not year_cols:
+        return None
+    df = df[[entity_col] + year_cols]
+    df = df[df[entity_col].notna()]
+    df = df[~df[entity_col].astype(str).str.lower().str.startswith("total")]
+    long = df.melt(id_vars=[entity_col], var_name="year", value_name="total_tiv")
+    long["year"] = (long["year"].astype(str)
+                    .str.replace(".0", "", regex=False).astype(int))
+    long["total_tiv"] = long["total_tiv"].map(_tiv_to_float)
+    long = long[long["total_tiv"].notna() & (long["total_tiv"] != 0)]
+    return long.rename(columns={entity_col: role})
+
+
+def _finalize_tiv(out: pd.DataFrame, role: str) -> pd.DataFrame:
     other = "supplier" if role == "recipient" else "recipient"
     out[other] = None
     out["weapon_designation"] = None
@@ -146,7 +207,6 @@ def parse_tiv_table(content: bytes, *, role: str = "recipient") -> pd.DataFrame:
         for _, r in out.iterrows()
     ]
     out = out.drop(columns=["year"])
-    log.info("sipri_arms tiv table: %d (entity, year) rows", len(out))
     return out[[c for c in REGISTER_COLUMNS if c in out.columns]]
 
 

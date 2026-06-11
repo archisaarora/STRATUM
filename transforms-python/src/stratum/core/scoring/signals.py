@@ -190,6 +190,9 @@ def arms_transfer_spike_signals(
     if len(spikes):
         idx = spikes.groupby("recipient_country")["year"].idxmax()
         spikes = spikes.loc[idx]
+        # Only recent spikes are actionable; a 2017 spike is history, not
+        # a signal. Keep the last two data years.
+        spikes = spikes[spikes["year"] >= velocity["year"].max() - 1]
     max_mag = max(float(spikes["spike_magnitude"].max() or 1.0), 1.0) if len(spikes) else 1.0
     for r in spikes.itertuples(index=False):
         spike_pct = (float(r.spike_magnitude) - 1.0) * 100.0

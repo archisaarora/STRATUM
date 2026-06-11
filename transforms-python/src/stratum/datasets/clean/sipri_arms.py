@@ -52,7 +52,14 @@ def compute(ctx, out, raw, countries):
     frames = []
     for f in fs.ls(glob="**/*.csv"):
         with fs.open(f.path, "rb") as fh:
-            frames.append(sipri_arms.parse_trade_register(fh.read()))
+            content = fh.read()
+        try:
+            frames.append(sipri_arms.parse_trade_register(content))
+        except ValueError:
+            try:
+                frames.append(sipri_arms.parse_tiv_csv(content))
+            except ValueError as exc:
+                log.warning("skipped %s: %s", f.path, exc)
     for f in fs.ls(glob="**/*.xlsx"):
         with fs.open(f.path, "rb") as fh:
             frames.append(sipri_arms.parse_tiv_table(fh.read()))
@@ -61,6 +68,13 @@ def compute(ctx, out, raw, countries):
                          "files — export from armstransfers.sipri.org first "
                          "(trade register CSV or TIV importer table XLSX)")
     pdf = pd.concat(frames, ignore_index=True)
+    # Register rows + annual TIV totals together would double-count:
+    # prefer the transfer-level register.
+    is_annual = pdf["status"] == sipri_arms.TIV_ANNUAL_MARKER
+    if is_annual.any() and (~is_annual).any():
+        log.info("dropping %d annual TIV rows in favor of register detail",
+                 int(is_annual.sum()))
+        pdf = pdf[~is_annual]
     rows_in = len(pdf)
 
     idx = country_index_from(countries)
