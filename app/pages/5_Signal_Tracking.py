@@ -47,6 +47,7 @@ tab_queue, tab_done = st.tabs(["Review queue", "Reviewed / dismissed"])
 
 def render_signal(r) -> None:
     flag = {"compound_signal": "🟣", "material_anomaly": "🔴",
+            "covert_acquisition": "🕳️",
             "procurement_acceleration": "🟠", "budget_discrepancy": "🟡",
             "arms_transfer_spike": "🔵"}.get(r.signal_type, "⚪")
     title = (f"{flag} {names.get(r.country_code, r.country_code)} · "
@@ -58,7 +59,9 @@ def render_signal(r) -> None:
                    f"evidence: {', '.join(r.supporting_evidence) or '—'}")
         notes = st.text_area("Analyst notes", value=r.analyst_notes,
                              key=f"notes_{r.signal_id}", height=80)
-        c1, c2, c3, c4 = st.columns(4)
+        c0, c1, c2, c3, c4 = st.columns(5)
+        if c0.button("🌍 Deep dive", key=f"dive_{r.signal_id}"):
+            loaders.goto_country(r.country_code)
         if c1.button("💾 Save notes", key=f"save_{r.signal_id}"):
             loaders.update_signal_state(out_dir, r.signal_id, notes=notes)
             st.toast("Notes saved")

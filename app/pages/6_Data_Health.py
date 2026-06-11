@@ -21,6 +21,7 @@ DATASETS = [
     ("feature_comtrade_with_baselines", "UN Comtrade baselines", "year"),
     ("feature_arms_transfer_velocity", "SIPRI arms velocity", "year"),
     ("feature_conflict_intensity_monthly", "Conflict intensity", "month"),
+    ("feature_import_intensity", "Import-intensity forensics", "year"),
     ("feature_contracts_classified", "Classified contracts", "award_date"),
     ("feature_companies", "Company rollup", None),
     ("score_material_credibility", "Material credibility", "year"),

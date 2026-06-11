@@ -8,6 +8,7 @@ analyst_state.json next to the outputs so it survives restarts.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -82,10 +83,27 @@ def _run_pipeline(sample: bool) -> None:
     cmd = [sys.executable, str(REPO / "scripts" / "run_local_pipeline.py")]
     if sample:
         cmd.append("--sample")
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    # Force UTF-8 in the child process — Windows otherwise defaults to
+    # cp1252 and chokes on report typography.
+    env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=env,
+                          encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         st.error(f"Pipeline failed:\n```\n{proc.stderr[-2000:]}\n```")
         st.stop()
+
+
+def goto_country(country_code: str) -> None:
+    """Cross-page navigation: preselect a country and open the deep dive."""
+    st.session_state["selected_country"] = country_code
+    st.switch_page("pages/2_Country_Deep_Dive.py")
+
+
+def history_delta(hist: pd.DataFrame, col: str) -> int | None:
+    """Change in a run-history metric vs the previous pipeline run."""
+    if len(hist) < 2 or col not in hist.columns:
+        return None
+    return int(hist.iloc[-1][col] - hist.iloc[-2][col])
 
 
 @st.cache_data(show_spinner=False)
@@ -143,7 +161,7 @@ def _state_path(out_dir: Path) -> Path:
 def analyst_state(out_dir: Path) -> dict:
     path = _state_path(out_dir)
     if path.exists():
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     return {}
 
 
@@ -152,7 +170,7 @@ def update_signal_state(out_dir: Path, signal_id: str, **changes) -> None:
     entry = state.setdefault(signal_id, {})
     entry.update(changes)
     entry["updated_at"] = datetime.now(timezone.utc).isoformat()
-    _state_path(out_dir).write_text(json.dumps(state, indent=1))
+    _state_path(out_dir).write_text(json.dumps(state, indent=1), encoding="utf-8")
 
 
 def run_history(out_dir: Path) -> pd.DataFrame:

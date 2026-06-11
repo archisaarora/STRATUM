@@ -11,6 +11,7 @@ import pandas as pd
 
 TYPE_WEIGHTS = {
     "compound_signal": 1.6,
+    "covert_acquisition": 1.2,
     "material_anomaly": 1.0,
     "procurement_acceleration": 0.9,
     "arms_transfer_spike": 0.9,

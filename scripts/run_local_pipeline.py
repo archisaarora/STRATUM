@@ -57,6 +57,7 @@ from stratum.core.parsing.sipri_arms import (  # noqa: E402
     parse_tiv_table, parse_trade_register)
 from stratum.core.parsing.sipri_milex import parse_workbook  # noqa: E402
 from stratum.core.report import build_report  # noqa: E402
+from stratum.core.features.import_intensity import import_intensity  # noqa: E402
 from stratum.core.scoring.material_credibility import material_credibility  # noqa: E402
 from stratum.core.scoring.procurement_acceleration import (  # noqa: E402
     procurement_acceleration)
@@ -107,11 +108,13 @@ def load_inputs(root: Path, idx: CountryIndex):
               & (m["year"] >= config.WORLDBANK_START_YEAR)]
         data["milex"] = m
 
-    register_frames = list(tiv_frames)
+    register_frames = [f for f in tiv_frames if len(f)]
     for f in find(root, "*arms*.csv", "*register*.csv", "*sipri*.csv"):
         try:
-            register_frames.append(parse_trade_register(f.read_bytes()))
-            say("ok", f"SIPRI arms register: {f.name}")
+            parsed = parse_trade_register(f.read_bytes())
+            if len(parsed):
+                register_frames.append(parsed)
+                say("ok", f"SIPRI arms register: {f.name}")
         except ValueError:
             say("warn", f"not a SIPRI register csv, skipped: {f.name}")
     if register_frames:
@@ -125,8 +128,13 @@ def load_inputs(root: Path, idx: CountryIndex):
         if not files:
             say("skip", f"{label}: no file found")
             return None
-        df = pd.concat([pd.read_csv(f, low_memory=False) for f in files],
-                       ignore_index=True)
+        frames = [f for f in (pd.read_csv(p, low_memory=False) for p in files)
+                  if len(f)]  # drop header-only placeholders before concat
+        if not frames:
+            say("skip", f"{label}: placeholder/empty file only — skipped")
+            return None
+        df = (frames[0] if len(frames) == 1
+              else pd.concat(frames, ignore_index=True))
         say("ok", f"{label}: {', '.join(f.name for f in files)} "
                   f"({len(df):,} rows)")
         return df
@@ -275,6 +283,14 @@ def run(root: Path) -> None:
         credibility = material_credibility(flows, d["milex"], classified)
         say("ok", f"material credibility: {len(credibility):,} country-domain-years")
         save(credibility, "score_material_credibility")
+    intensity = None
+    if flows is not None and d["milex"] is not None:
+        intensity = import_intensity(flows, d["milex"])
+        n_covert = int(intensity["covert_acquisition_flag"].fillna(False).sum())
+        say("warn" if n_covert else "ok",
+            f"import intensity: {len(intensity):,} country-years, "
+            f"{n_covert} covert-acquisition flags")
+        save(intensity, "feature_import_intensity")
     accel = None
     if classified is not None:
         accel = procurement_acceleration(
@@ -284,7 +300,7 @@ def run(root: Path) -> None:
 
     signals = generate_all_signals(
         flows=flows, accel=accel, budget=budget, credibility=credibility,
-        velocity=velocity,
+        velocity=velocity, intensity=intensity,
         thresholds={
             "material_min_score": config.SIGNAL_MATERIAL_MIN_SCORE,
             "material_min_deviation": config.SIGNAL_MATERIAL_MIN_DEVIATION,
@@ -345,7 +361,7 @@ def run(root: Path) -> None:
                             if flows is not None else None),
         )
         report_path = out_dir / f"intel_report_{top['country_code']}.md"
-        report_path.write_text(report)
+        report_path.write_text(report, encoding="utf-8")
         say("ok", f"intelligence report -> {report_path}")
     print(f"\nAll outputs in {out_dir}. These are previews — Foundry "
           f"recomputes them from the same raw files you upload.")

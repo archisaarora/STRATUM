@@ -211,6 +211,46 @@ def arms_transfer_spike_signals(
     return out
 
 
+def covert_acquisition_signals(
+    intensity: pd.DataFrame, *, created_at: str | None = None
+) -> list[dict]:
+    """Dual-use imports surging while direct military imports and the
+    declared budget stay flat — acquisition outside declared channels."""
+    created_at = created_at or datetime.utcnow().isoformat()
+    flagged = intensity[intensity["covert_acquisition_flag"].fillna(False)]
+    if len(flagged):
+        idx = flagged.groupby("country_code")["year"].idxmax()
+        flagged = flagged.loc[idx]
+    out = []
+    for r in flagged.itertuples(index=False):
+        z = float(r.intensity_z) if pd.notna(r.intensity_z) else 0.0
+        growth = float(r.dual_use_yoy_pct)
+        strength = min(1.0, 0.5 * min(growth / 100.0, 1.0)
+                       + 0.5 * min(max(z, 0.0) / 3.0, 1.0))
+        domain = r.top_dual_use_category or "dual_use_research"
+        peer_note = (f"import intensity {z:.1f} sigma above the peer median"
+                     if z > 0 else
+                     f"import intensity up {r.ratio_change_pct:.0f}% vs prior year")
+        out.append(_signal(
+            signal_type="covert_acquisition",
+            country_code=r.country_code,
+            domain=domain,
+            strength=strength,
+            confidence=0.6 + min(0.2, max(z, 0.0) * 0.07),
+            description=(
+                f"Dual-use defense-relevant imports of {r.country_code} grew "
+                f"{growth:.0f}% year-over-year in {int(r.year)} (led by "
+                f"{domain}) while direct military imports stayed flat and "
+                f"{peer_note} — pattern consistent with capability "
+                f"acquisition outside declared channels"
+            ),
+            evidence=[f"intensity:{r.country_code}:{int(r.year)}"],
+            window_end=int(r.year),
+            created_at=created_at,
+        ))
+    return out
+
+
 def compound_signals(
     base_signals: list[dict],
     *,
@@ -269,6 +309,7 @@ def generate_all_signals(
     budget: pd.DataFrame | None,
     credibility: pd.DataFrame | None,
     velocity: pd.DataFrame | None,
+    intensity: pd.DataFrame | None = None,
     thresholds: dict | None = None,
     created_at: str | None = None,
 ) -> pd.DataFrame:
@@ -292,6 +333,8 @@ def generate_all_signals(
         )
     if velocity is not None and len(velocity):
         base += arms_transfer_spike_signals(velocity, created_at=created_at)
+    if intensity is not None and len(intensity):
+        base += covert_acquisition_signals(intensity, created_at=created_at)
 
     all_signals = base + compound_signals(
         base, escalation=t.get("compound_escalation", 1.5), created_at=created_at

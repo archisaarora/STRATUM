@@ -56,9 +56,11 @@ def monthly_intensity(
     for col in ("gdelt_events", "avg_goldstein", "acled_events", "acled_fatalities"):
         if col not in df:
             df[col] = np.nan
+        # numeric coercion before fillna avoids object-dtype downcasting
+        df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    df["gdelt_events"] = df["gdelt_events"].fillna(0)
-    df["acled_fatalities"] = df["acled_fatalities"].fillna(0)
+    df["gdelt_events"] = df["gdelt_events"].fillna(0.0)
+    df["acled_fatalities"] = df["acled_fatalities"].fillna(0.0)
     # Goldstein: -10 (most conflictual) .. +10 — invert into a severity scale.
     df["goldstein_severity"] = (10.0 - df["avg_goldstein"].fillna(10.0)) / 20.0
 

@@ -40,14 +40,16 @@ SCHEMA = T.StructType([
     budget=Input(config.features("feature_budget_discrepancy")),
     credibility=Input(config.scores("score_material_credibility")),
     velocity=Input(config.features("feature_arms_transfer_velocity")),
+    intensity=Input(config.features("feature_import_intensity")),
 )
-def compute(ctx, out, flows, accel, budget, credibility, velocity):
+def compute(ctx, out, flows, accel, budget, credibility, velocity, intensity):
     signals = generate_all_signals(
         flows=flows.dataframe().toPandas(),
         accel=accel.dataframe().toPandas(),
         budget=budget.dataframe().toPandas(),
         credibility=credibility.dataframe().toPandas(),
         velocity=velocity.dataframe().toPandas(),
+        intensity=intensity.dataframe().toPandas(),
         thresholds={
             "material_min_score": config.SIGNAL_MATERIAL_MIN_SCORE,
             "material_min_deviation": config.SIGNAL_MATERIAL_MIN_DEVIATION,

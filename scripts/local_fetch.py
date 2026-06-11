@@ -101,10 +101,11 @@ def _comtrade_reporters() -> dict[str, int]:
 def _comtrade_append(rows: list[dict]) -> None:
     out_path = OUT / "raw_comtrade_flows.csv"
     df = pd.DataFrame(rows)
-    if out_path.exists() and len(df):
-        df = pd.concat([pd.read_csv(out_path), df], ignore_index=True)
-    elif out_path.exists():
-        df = pd.read_csv(out_path)
+    if out_path.exists():
+        prev = pd.read_csv(out_path)
+        frames = [f for f in (prev, df) if len(f)]
+        df = (pd.concat(frames, ignore_index=True) if len(frames) > 1
+              else (frames[0] if frames else df))
     df.to_csv(out_path, index=False)
     print(f"-> {out_path} ({len(df):,} total rows). "
           f"Re-run until the queue drains, then upload to raw_comtrade_flows.")
@@ -127,7 +128,7 @@ def cmd_comtrade(args) -> None:
             if not args.monitored_only:
                 print("Tip: add --monitored-only to cut the call count ~70%.")
         ckpt = OUT / "comtrade_public_checkpoint.json"
-        done = set(map(tuple, json.loads(ckpt.read_text()))) if ckpt.exists() else set()
+        done = set(map(tuple, json.loads(ckpt.read_text(encoding="utf-8")))) if ckpt.exists() else set()
         queue = comtrade.build_public_work_queue(
             reporters, years, config.DEFENSE_HS_CODES,
             {(c, int(y), h) for c, y, h in done})
@@ -144,12 +145,12 @@ def cmd_comtrade(args) -> None:
                 continue
             rows.extend(comtrade.to_raw_rows(recs, iso3))
             done.add((iso3, year, hs))
-        ckpt.write_text(json.dumps(sorted(done)))
+        ckpt.write_text(json.dumps(sorted(done)), encoding="utf-8")
         _comtrade_append(rows)
         return
 
     ckpt = OUT / "comtrade_checkpoint.json"
-    done = set(map(tuple, json.loads(ckpt.read_text()))) if ckpt.exists() else set()
+    done = set(map(tuple, json.loads(ckpt.read_text(encoding="utf-8")))) if ckpt.exists() else set()
     queue = comtrade.build_work_queue(reporters, years,
                                       {(c, int(y)) for c, y in done})
     print(f"{len(queue)} (reporter, year) pairs pending; "
@@ -167,7 +168,7 @@ def cmd_comtrade(args) -> None:
         rows.extend(comtrade.to_raw_rows(recs, iso3))
         done.add((iso3, year))
         print(f"  {iso3}/{year}: {len(recs)} rows")
-    ckpt.write_text(json.dumps(sorted(done)))
+    ckpt.write_text(json.dumps(sorted(done)), encoding="utf-8")
     _comtrade_append(rows)
 
 
@@ -200,7 +201,7 @@ def cmd_opensanctions(args) -> None:
         s, sources.OPENSANCTIONS_BASE, sources.OPENSANCTIONS_DEFAULT_PATH)
     OUT.mkdir(exist_ok=True)
     path = OUT / "raw_opensanctions_entities.csv"
-    path.write_text(text)
+    path.write_text(text, encoding="utf-8")
     print(f"wrote {path} — upload to dataset raw_opensanctions_entities")
 
 

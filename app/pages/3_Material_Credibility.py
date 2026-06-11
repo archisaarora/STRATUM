@@ -18,6 +18,7 @@ out_dir = loaders.sidebar()
 cred = loaders.load(out_dir, "score_material_credibility")
 flows = loaders.load(out_dir, "feature_comtrade_with_baselines")
 milex = loaders.load(out_dir, "clean_sipri_milex")
+intensity = loaders.load(out_dir, "feature_import_intensity")
 profiles = loaders.load_profiles(out_dir)
 names = loaders.country_names(out_dir)
 
@@ -44,17 +45,41 @@ with left:
                   overdeclaration=("overdeclaration_score", "max"))
              .reset_index().sort_values("credibility"))
     board["country"] = board["country_code"].map(names)
-    st.dataframe(
-        board[["country", "credibility", "underdeclaration", "overdeclaration"]],
-        width="stretch", hide_index=True, height=420,
+    if flows is not None:  # sparkline of defense-relevant import value
+        trend = (flows[flows["flow_direction"] == "import"]
+                 .groupby(["reporter_country", "year"])["trade_value_usd"]
+                 .sum().reset_index().sort_values("year")
+                 .groupby("reporter_country")["trade_value_usd"]
+                 .apply(list).rename("import_trend"))
+        board = board.merge(trend, left_on="country_code",
+                            right_index=True, how="left")
+    else:
+        board["import_trend"] = None
+    pick = st.dataframe(
+        board[["country", "credibility", "underdeclaration",
+               "overdeclaration", "import_trend"]],
+        width="stretch", hide_index=True, height=400,
+        on_select="rerun", selection_mode="single-row", key="cred_board",
         column_config={
             "credibility": st.column_config.ProgressColumn(
-                "credibility", min_value=0, max_value=100, format="%.0f"),
+                "credibility", min_value=0, max_value=100, format="%.0f",
+                help="100 = declared budget and physical imports tell the "
+                     "same story; low = they diverge."),
             "underdeclaration": st.column_config.NumberColumn(
-                "under-decl.", format="%.0f"),
+                "under-decl.", format="%.0f",
+                help="Imports run AHEAD of declared programs."),
             "overdeclaration": st.column_config.NumberColumn(
-                "over-decl.", format="%.0f"),
+                "over-decl.", format="%.0f",
+                help="Programs announced without material evidence."),
+            "import_trend": st.column_config.LineChartColumn(
+                "imports trend", help="Defense-relevant import value by year"),
         })
+    sel = pick.selection.rows if pick and pick.selection else []
+    if sel:
+        chosen = board.iloc[sel[0]]
+        if st.button(f"Open deep dive: {chosen['country']} →",
+                     type="primary", key="board_dive"):
+            loaders.goto_country(chosen["country_code"])
 
 # ----------------------------------------------------------- scatter
 with right:
@@ -102,6 +127,44 @@ with right:
                    "relevant material than peers with the same declared "
                    "budget (possible under-declaration); far below = "
                    "declared spending without material evidence.")
+
+# ----------------------------------------------------------- covert watch
+st.subheader("Covert-acquisition watchlist")
+st.caption("Countries whose **dual-use** defense-relevant imports surged "
+           "while **direct military** imports and declared budgets stayed "
+           "flat — the trade pattern that flies under the radar.")
+if intensity is None:
+    st.info("Needs Comtrade + SIPRI milex data.")
+else:
+    watch = intensity[intensity["covert_acquisition_flag"].fillna(False)]
+    if watch.empty:
+        st.success("No covert-acquisition patterns in the current data.")
+    else:
+        w = watch.copy()
+        w["country"] = w["country_code"].map(names)
+        wpick = st.dataframe(
+            w[["country", "year", "dual_use_yoy_pct", "direct_yoy_pct",
+               "intensity_ratio", "intensity_z", "top_dual_use_category"]],
+            width="stretch", hide_index=True,
+            on_select="rerun", selection_mode="single-row", key="covert_watch",
+            column_config={
+                "dual_use_yoy_pct": st.column_config.NumberColumn(
+                    "dual-use YoY", format="%+.0f%%"),
+                "direct_yoy_pct": st.column_config.NumberColumn(
+                    "direct YoY", format="%+.0f%%"),
+                "intensity_ratio": st.column_config.NumberColumn(
+                    "imports / budget", format="%.2f"),
+                "intensity_z": st.column_config.NumberColumn(
+                    "vs peers (sigma)", format="%+.1f"),
+                "top_dual_use_category": st.column_config.TextColumn(
+                    "led by"),
+            })
+        wsel = wpick.selection.rows if wpick and wpick.selection else []
+        if wsel:
+            chosen = w.iloc[wsel[0]]
+            if st.button(f"Investigate {chosen['country']} in the deep "
+                         f"dive →", type="primary", key="covert_dive"):
+                loaders.goto_country(chosen["country_code"])
 
 # ----------------------------------------------------------- anomalies
 st.subheader("Anomalous flows (the 'what are they buying?' table)")

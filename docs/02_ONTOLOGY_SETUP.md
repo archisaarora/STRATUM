@@ -49,6 +49,9 @@ if inference misses them).
 
 ### 5. ThreatSignal — backing: `ontology_threat_signal`
 - PK: `signal_id` · Title: `description_text`
+- `signal_type` values: material_anomaly · covert_acquisition ·
+  budget_discrepancy · procurement_acceleration · arms_transfer_spike ·
+  compound_signal
 - Notable: `signal_type`, `country_code`, `domain`,
   `signal_strength` (double), `confidence_score` (double),
   `supporting_evidence` (string array), `window_end`, `created_at`,

@@ -42,9 +42,9 @@ def main() -> None:
         "raw_sipri_milex/SIPRI-Milex-data-SAMPLE.xlsx":
             lambda p: p.write_bytes(sample_data.sipri_milex_workbook()),
         "raw_sipri_arms_transfers/sipri_arms_trade_register_SAMPLE.csv":
-            lambda p: p.write_text(sample_data.sipri_arms_csv()),
+            lambda p: p.write_text(sample_data.sipri_arms_csv(), encoding="utf-8"),
         "raw_opensanctions_entities/targets.simple.SAMPLE.csv":
-            lambda p: p.write_text(sample_data.opensanctions_csv()),
+            lambda p: p.write_text(sample_data.opensanctions_csv(), encoding="utf-8"),
         "raw_usaspending_contracts/usaspending_SAMPLE.csv":
             lambda p: sample_data.usaspending_raw().to_csv(p, index=False),
         "raw_dod_contracts_daily/dod_contracts_SAMPLE.csv":

@@ -26,6 +26,7 @@ milex = loaders.load(out_dir, "clean_sipri_milex")
 budget = loaders.load(out_dir, "feature_budget_discrepancy")
 velocity = loaders.load(out_dir, "feature_arms_transfer_velocity")
 conflict = loaders.load(out_dir, "feature_conflict_intensity_monthly")
+intensity = loaders.load(out_dir, "feature_import_intensity")
 names = loaders.country_names(out_dir)
 
 st.title("COUNTRY DEEP-DIVE")
@@ -40,7 +41,10 @@ if not candidates:
     st.stop()
 ordered = (profiles["country_code"].tolist() if profiles is not None else [])
 ordered += sorted(set(candidates) - set(ordered))
-country = st.selectbox("Country", ordered,
+# Cross-page navigation: other pages set selected_country before switching.
+preselect = st.session_state.pop("selected_country", None)
+default_idx = ordered.index(preselect) if preselect in ordered else 0
+country = st.selectbox("Country", ordered, index=default_idx,
                        format_func=lambda c: f"{names.get(c, c)} ({c})")
 cname = names.get(country, country)
 
@@ -136,8 +140,121 @@ with right:
             fig.update_layout(height=200, **loaders.PLOTLY_LAYOUT)
             st.plotly_chart(fig, width="stretch")
 
-# ------------------------------------------- flows & arms & conflict
-t1, t2, t3 = st.tabs(["Trade flows", "Arms transfers", "Conflict context"])
+# ------------------------------------------- forensics / arms / conflict
+t0, t1, t2, t3 = st.tabs(["Import forensics", "Trade flows",
+                          "Arms transfers", "Conflict context"])
+
+with t0:
+    if flows is None:
+        st.info("Needs Comtrade data — run "
+                "`python scripts/local_fetch.py comtrade --monitored-only` "
+                "(no key required).")
+    else:
+        fcountry = flows[(flows["reporter_country"] == country)
+                         & (flows["flow_direction"] == "import")]
+        if fcountry.empty:
+            st.caption("No import flows recorded for this country.")
+        else:
+            # --- covert-acquisition status banner -------------------------
+            if intensity is not None:
+                icountry = intensity[intensity["country_code"] == country] \
+                    .sort_values("year")
+                if len(icountry):
+                    latest_i = icountry.iloc[-1]
+                    if bool(latest_i["covert_acquisition_flag"]):
+                        st.error(
+                            f"**COVERT-ACQUISITION PATTERN ({int(latest_i['year'])}):** "
+                            f"dual-use imports +{latest_i['dual_use_yoy_pct']:.0f}% "
+                            f"YoY while direct military imports stayed flat — "
+                            f"led by {latest_i['top_dual_use_category']}.")
+                    ic1, ic2, ic3 = st.columns(3)
+                    ic1.metric(
+                        "Import intensity",
+                        f"{latest_i['intensity_ratio']:.2f}",
+                        help="Defense-relevant imports per $1 of declared "
+                             "military budget. High + rising = imports the "
+                             "budget doesn't explain.")
+                    z = latest_i["intensity_z"]
+                    ic2.metric("vs peers",
+                               "—" if pd.isna(z) else f"{z:+.1f} σ",
+                               help="Z-score of the (log) intensity ratio "
+                                    "across all countries this year.")
+                    ic3.metric("Dual-use share",
+                               f"{latest_i['dual_use_share']:.0%}",
+                               help="Share of defense-relevant imports that "
+                                    "are dual-use precursors rather than "
+                                    "finished military goods.")
+                    # dual-use vs direct streams over time
+                    streams = icountry.melt(
+                        id_vars="year",
+                        value_vars=["dual_use_value", "direct_value"],
+                        var_name="stream", value_name="value")
+                    streams["stream"] = streams["stream"].map({
+                        "dual_use_value": "Dual-use precursors",
+                        "direct_value": "Direct military goods"})
+                    fig = px.bar(streams, x="year", y="value", color="stream",
+                                 barmode="group",
+                                 color_discrete_map={
+                                     "Dual-use precursors": "#f5222d",
+                                     "Direct military goods": "#4096ff"},
+                                 title="Two import streams: precursors vs "
+                                       "finished military goods")
+                    fig.update_layout(height=260, legend_title=None,
+                                      **loaders.PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, width="stretch")
+                    st.caption(
+                        "Red growing while blue stays flat is the "
+                        "under-the-radar pattern: building capability from "
+                        "inputs instead of importing visible weapons.")
+
+            # --- per-commodity drill-down --------------------------------
+            st.markdown("##### Commodity drill-down")
+            ranked = (fcountry.groupby(["hs_code", "commodity_name"])
+                      ["anomaly_score"].max().sort_values(ascending=False)
+                      .reset_index())
+            options = [f"{r.hs_code} — {r.commodity_name}"
+                       for r in ranked.itertuples(index=False)]
+            pick = st.selectbox("Commodity (sorted by anomaly)", options,
+                                key="commodity_pick")
+            hs_pick = pick.split(" — ")[0]
+            series = fcountry[fcountry["hs_code"].astype(str) == hs_pick] \
+                .sort_values("year")
+            show_price = st.toggle(
+                "Unit price (USD/kg) — flat volume with rising price can "
+                "indicate higher-grade material", key="unit_price")
+            fig = go.Figure()
+            if show_price and series["net_weight_kg"].fillna(0).gt(0).any():
+                price = series["trade_value_usd"] / series["net_weight_kg"]
+                fig.add_scatter(x=series["year"], y=price, mode="lines+markers",
+                                name="unit price (USD/kg)",
+                                line=dict(color="#f0b429"))
+            else:
+                base = series["rolling_avg_3y"]
+                fig.add_scatter(x=series["year"], y=base * 1.5, mode="lines",
+                                line=dict(width=0), showlegend=False,
+                                hoverinfo="skip")
+                fig.add_scatter(x=series["year"], y=base, mode="lines",
+                                name="3y baseline ±50%", fill="tonexty",
+                                fillcolor="rgba(110,118,129,0.25)",
+                                line=dict(color="#6b7280", dash="dot"))
+                fig.add_scatter(
+                    x=series["year"], y=series["trade_value_usd"],
+                    mode="lines+markers", name="import value",
+                    line=dict(color="#4096ff"),
+                    customdata=series[["baseline_deviation_pct",
+                                       "anomaly_score"]],
+                    hovertemplate="%{x}: $%{y:,.0f}<br>vs baseline: "
+                                  "%{customdata[0]:+.0f}%%<br>anomaly: "
+                                  "%{customdata[1]:.2f}<extra></extra>")
+                anomalous = series[series["anomaly_flag"].fillna(False)]
+                if len(anomalous):
+                    fig.add_scatter(
+                        x=anomalous["year"], y=anomalous["trade_value_usd"],
+                        mode="markers", name="anomalous year",
+                        marker=dict(color="#f5222d", size=14, symbol="x"))
+            fig.update_layout(height=300, **loaders.PLOTLY_LAYOUT)
+            st.plotly_chart(fig, width="stretch")
+
 with t1:
     if flows is None:
         st.info("No Comtrade data.")
