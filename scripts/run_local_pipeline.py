@@ -199,6 +199,11 @@ def run(root: Path) -> None:
         c = c[c["hs_code"].notna()].copy()
         c["hs_code"] = c["hs_code"].astype(str).str.split(".").str[0]
         c["flow_direction"] = c["flow_code"].map({"M": "import", "X": "export"})
+        # mixing keyless + keyed fetch runs can append the same rows twice
+        c = c.drop_duplicates(
+            subset=[col for col in ("reporter_country", "partner_m49",
+                                    "hs_code", "flow_code", "year", "month")
+                    if col in c.columns], keep="last")
         c = c[c["flow_direction"].notna()]
         flows = annual_with_baselines(
             map_capability(c, hs_ref),
