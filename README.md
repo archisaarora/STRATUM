@@ -82,6 +82,7 @@ Six pages, cross-linked (click a country anywhere → its deep dive):
    declared-vs-material radar; **Import Forensics** tab: dual-use vs
    direct import streams, per-commodity drill-down with baseline band +
    anomaly markers + unit-price check; arms transfers; conflict context;
+   per-signal **live news corroboration** (GDELT, 65 languages, one click);
    in-app intelligence report.
 3. **Material Credibility** — credibility leaderboard with import-trend
    sparklines, budget-credibility scatter, **covert-acquisition

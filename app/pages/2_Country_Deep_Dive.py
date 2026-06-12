@@ -12,6 +12,8 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import loaders  # noqa: E402
 
+from stratum.core.clients.gdelt_doc import search_articles  # noqa: E402
+from stratum.core.http import default_session  # noqa: E402
 from stratum.core.report import build_report  # noqa: E402
 
 st.set_page_config(page_title="STRATUM — Country Deep Dive", page_icon="🛰️",
@@ -323,6 +325,34 @@ else:
             st.write(r.description_text)
             st.caption(f"window: {r.window_end} · evidence: "
                        f"{', '.join(r.supporting_evidence) or '—'}")
+            news_key = f"articles_{r.signal_id}"
+            if st.button("🔎 Find corroborating news (GDELT, live)",
+                         key=f"news_btn_{r.signal_id}",
+                         help="Searches the world's press (65 languages) for "
+                              "recent reporting that supports or contradicts "
+                              "this signal. Needs internet."):
+                try:
+                    with st.spinner("Searching world press…"):
+                        st.session_state[news_key] = search_articles(
+                            default_session(), country_name=cname,
+                            domain=r.domain)
+                except Exception as exc:
+                    st.session_state[news_key] = None
+                    st.warning(f"GDELT unreachable ({exc}). Check your "
+                               f"internet connection and retry.")
+            articles = st.session_state.get(news_key)
+            if articles is not None:
+                if not articles:
+                    st.caption("No matching press coverage in the last 12 "
+                               "months — note that absence of reporting on "
+                               "an active material signal is itself "
+                               "noteworthy.")
+                for a in articles[:10]:
+                    st.markdown(
+                        f"- [{a['title']}]({a['url']}) — "
+                        f"{a['source']} · {a['date']}"
+                        + (f" · {a['language']}"
+                           if a["language"] not in ("", "English") else ""))
 
     st.subheader("Intelligence report")
     if st.button("Generate intelligence report", type="primary"):
