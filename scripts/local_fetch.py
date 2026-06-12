@@ -69,26 +69,43 @@ def cmd_worldbank(args) -> None:
 
 
 def cmd_usaspending(args) -> None:
+    """Resumable: each month is checkpointed and appended to the CSV as it
+    completes, so a crash or Ctrl-C loses nothing — re-run to continue."""
     s = default_session()
+    OUT.mkdir(exist_ok=True)
     start = date.fromisoformat(args.start)
     end = date.fromisoformat(args.end) if args.end else date.today()
-    all_rows = []
+    ckpt = OUT / "usaspending_checkpoint.json"
+    done = set(json.loads(ckpt.read_text(encoding="utf-8"))) \
+        if ckpt.exists() else set()
+    out_path = OUT / "raw_usaspending_contracts.csv"
+
     cursor = start
+    fetched = 0
     while cursor < end:
         nxt = min(date(cursor.year + (cursor.month == 12),
                        (cursor.month % 12) + 1, 1) - timedelta(days=1), end)
+        ws = cursor.isoformat()
+        if ws in done:
+            cursor = nxt + timedelta(days=1)
+            continue
         records = list(usaspending.iter_awards(
             s, sources.USASPENDING_BASE,
-            start_date=cursor.isoformat(), end_date=nxt.isoformat(),
+            start_date=ws, end_date=nxt.isoformat(),
             agencies=config.USASPENDING_AGENCIES,
             award_type_codes=config.USASPENDING_AWARD_TYPES,
             max_pages=args.max_pages))
-        all_rows.extend(usaspending.to_raw_rows(
-            records, cursor.isoformat(), nxt.isoformat()))
-        print(f"  {cursor} .. {nxt}: {len(records)} awards "
-              f"(total {len(all_rows):,})")
+        rows = usaspending.to_raw_rows(records, ws, nxt.isoformat())
+        if rows:
+            pd.DataFrame(rows).to_csv(out_path, mode="a", index=False,
+                                      header=not out_path.exists())
+        done.add(ws)
+        ckpt.write_text(json.dumps(sorted(done)), encoding="utf-8")
+        fetched += len(rows)
+        print(f"  {ws} .. {nxt}: {len(records)} awards (+{fetched:,} this run)")
         cursor = nxt + timedelta(days=1)
-    _save(pd.DataFrame(all_rows), "raw_usaspending_contracts")
+    print(f"done through {end}. CSV: {out_path}\n"
+          f"  re-run any time — already-fetched months are skipped.")
 
 
 def _comtrade_reporters() -> dict[str, int]:

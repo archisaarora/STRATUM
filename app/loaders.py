@@ -36,39 +36,74 @@ PLOTLY_LAYOUT = dict(
 )
 
 
+MY_DATA_LABEL = "My data (local-data)"
+
+
 def data_dirs() -> dict[str, Path]:
     options: dict[str, Path] = {}
     real = REPO / "local-data" / "outputs"
     sample = REPO / "sample-data" / "outputs"
     if real.exists():
-        options["My data (local-data)"] = real
+        options[MY_DATA_LABEL] = real
     if sample.exists():
         options["Demo scenario (sample-data)"] = sample
     return options
 
 
+def local_input_files() -> list[str]:
+    """Raw data files sitting in local-data/ waiting to be processed."""
+    root = REPO / "local-data"
+    if not root.exists():
+        return []
+    return sorted(
+        f.name for f in root.rglob("*")
+        if f.is_file() and "outputs" not in f.parts
+        and f.suffix.lower() in (".csv", ".xlsx")
+        and "checkpoint" not in f.name.lower())
+
+
 def sidebar() -> Path:
-    """Common sidebar: data-source picker + pipeline rerun. Returns the
-    selected outputs directory."""
+    """Common sidebar: data-source picker + pipeline build/refresh.
+    Returns the selected outputs directory."""
     st.sidebar.markdown("## STRATUM")
     st.sidebar.caption("OSINT threat-capability intelligence")
     options = data_dirs()
+    inputs = local_input_files()
+
+    # First-time path for real data: raw files exist but were never
+    # processed — offer to build right here.
+    if MY_DATA_LABEL not in options and inputs:
+        st.sidebar.success(f"{len(inputs)} raw data file(s) found in "
+                           f"local-data/ — not processed yet.")
+        if st.sidebar.button("Build dashboards from MY data",
+                             type="primary", width="stretch"):
+            with st.spinner(f"Running pipeline on {len(inputs)} files…"):
+                _run_pipeline(sample=False)
+            st.cache_data.clear()
+            st.session_state["data_source"] = MY_DATA_LABEL
+            st.rerun()
+        with st.sidebar.expander("Files detected"):
+            st.markdown("\n".join(f"- `{n}`" for n in inputs))
+
     if not options:
         st.sidebar.warning("No pipeline outputs found yet.")
-        if st.sidebar.button("Generate demo scenario", type="primary"):
+        if st.sidebar.button("Generate demo scenario"):
             _run_pipeline(sample=True)
             st.rerun()
         st.info(
-            "No data yet. Click **Generate demo scenario** in the sidebar, "
-            "or run `python scripts/run_local_pipeline.py` after placing "
-            "files in local-data/ (see docs/01_DATA_ACQUISITION.md)."
+            "No dashboards built yet. Use the sidebar: **Build dashboards "
+            "from MY data** (if you've fetched/downloaded data into "
+            "local-data/) or **Generate demo scenario**."
         )
         st.stop()
+
     label = st.sidebar.radio("Data source", list(options), key="data_source")
     out_dir = options[label]
 
     sample = "sample-data" in str(out_dir)
-    if st.sidebar.button("Re-run pipeline", width="stretch"):
+    refresh_label = ("Re-run pipeline (demo)" if sample
+                     else "Re-run pipeline (my data)")
+    if st.sidebar.button(refresh_label, width="stretch"):
         with st.spinner("Running STRATUM pipeline…"):
             _run_pipeline(sample=sample)
         st.cache_data.clear()
